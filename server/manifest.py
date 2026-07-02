@@ -69,13 +69,13 @@ def get_manifest(config: dict = None) -> Manifest:
         name="Max WheyTV",
         description="Universal streaming — Movies, Series & Live TV from every corner of the world.",
         resources=[
-            {"name": "catalog", "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_", "mal_"]},
-            {"name": "meta",    "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_", "mal_"]},
-            {"name": "stream",  "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_", "mal_"]},
+            {"name": "catalog", "types": ["movie", "series", "tv"], "idPrefixes": ["mwh_"]},
+            {"name": "meta",    "types": ["movie", "series", "tv"], "idPrefixes": ["mwh_"]},
+            {"name": "stream",  "types": ["movie", "series", "tv"], "idPrefixes": ["mwh_"]},
         ],
         types=["movie", "series", "tv"],
         catalogs=catalogs,
-        idPrefixes=["tt", "mwh_", "mal_"],
+        idPrefixes=["mwh_"],
         background="https://raw.githubusercontent.com/Stremio/stremio-art/main/originals/Ahlen%20Ken%20A.%20Batalon.png",
         behaviorHints={"configurable": True, "configurationRequired": False},
     )

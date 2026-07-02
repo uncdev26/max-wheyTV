@@ -15,7 +15,6 @@ from server.config import (
 
 router = APIRouter()
 
-# ─── Cache ───────────────────────────────────────────────────
 _catalog_cache = {}
 _cache_time = 0
 CACHE_TTL = 3600
@@ -53,6 +52,62 @@ async def fetch_moviebox_page(client, gid, page=1, per_page=50):
     except:
         pass
     return [], {}
+
+
+async def build_moviebox_section(client, gid, item_type):
+    """Fetch MovieBox catalog and resolve to TMDB IDs for metadata."""
+    all_items = []
+    page = 1
+    while page <= 3:
+        items, pager = await fetch_moviebox_page(client, gid, page)
+        if not items:
+            break
+        all_items.extend(items)
+        if not pager.get("hasMore", False):
+            break
+        page += 1
+
+    if not all_items:
+        return [], []
+
+    # Resolve titles to TMDB IDs
+    titles_years = [(clean_title(i.get("title", "")), (i.get("releaseDate") or "")[:4]) for i in all_items]
+    tmdb_ids = await resolve_batch(client, titles_years)
+
+    # Get IMDB IDs from TMDB
+    valid_tmdb = [t for t in tmdb_ids if t]
+    imdb_ids = await tmdb_to_imdb_batch(client, valid_tmdb)
+
+    metas = []
+    moviebox_items = []  # Store for meta resolution
+    imdb_idx = 0
+    for item, tid in zip(all_items, tmdb_ids):
+        if not tid:
+            continue
+        imdb = imdb_ids[imdb_idx] if imdb_idx < len(imdb_ids) else None
+        imdb_idx += 1
+        if not imdb:
+            continue
+
+        cover = item.get("cover", {})
+        poster = cover.get("url") if isinstance(cover, dict) else None
+        title = clean_title(item.get("title", ""))
+        year = (item.get("releaseDate") or "")[:4]
+
+        # Use mwh_ prefix ID (not tt) so Stremio calls OUR meta endpoint
+        meta_id = f"mwh_{imdb}"
+
+        metas.append({
+            "id": meta_id,
+            "type": item_type,
+            "name": title,
+            "poster": poster,
+            "releaseInfo": year,
+            "background": poster,
+        })
+        moviebox_items.append({"id": meta_id, "imdb": imdb, "title": title, "year": year})
+
+    return metas, moviebox_items
 
 
 async def resolve_batch(client, titles_years):
@@ -97,56 +152,7 @@ async def tmdb_to_imdb_batch(client, tmdb_ids):
     return results
 
 
-async def build_moviebox_section(client, gid, item_type):
-    all_items = []
-    page = 1
-    while page <= 5:
-        items, pager = await fetch_moviebox_page(client, gid, page)
-        if not items:
-            break
-        all_items.extend(items)
-        if not pager.get("hasMore", False):
-            break
-        page += 1
-
-    if not all_items:
-        return []
-
-    ty = [(clean_title(i.get("title", "")), (i.get("releaseDate") or "")[:4]) for i in all_items]
-    tmdb_ids = await resolve_batch(client, ty)
-    imdb_ids = await tmdb_to_imdb_batch(client, [t for t in tmdb_ids if t])
-
-    metas = []
-    imdb_idx = 0
-    for item, tid in zip(all_items, tmdb_ids):
-        if not tid:
-            continue
-        imdb = imdb_ids[imdb_idx] if imdb_idx < len(imdb_ids) else None
-        imdb_idx += 1
-        if not imdb:
-            continue
-        cover = item.get("cover", {})
-        poster = cover.get("url") if isinstance(cover, dict) else None
-        metas.append({
-            "id": imdb,
-            "type": item_type,
-            "name": clean_title(item.get("title", "")),
-            "poster": poster,
-        })
-    return metas
-
-
 # ─── Jikan Anime ─────────────────────────────────────────────
-
-async def fetch_jikan(client, endpoint, limit=25):
-    try:
-        r = await client.get(f"https://api.jikan.moe/v4/{endpoint}", timeout=10)
-        if r.status_code == 200:
-            return r.json().get("data", [])
-    except:
-        pass
-    return []
-
 
 def anime_to_meta(anime):
     mal_id = anime.get("mal_id")
@@ -154,13 +160,12 @@ def anime_to_meta(anime):
     images = anime.get("images", {}).get("jpg", {})
     poster = images.get("large_image_url") or images.get("image_url")
     score = anime.get("score")
-    episodes = anime.get("episodes") or 0
     synopsis = anime.get("synopsis", "")
     year = anime.get("year") or (anime.get("aired", {}).get("from", "") or "")[:4]
     genres = [g["name"] for g in anime.get("genres", [])]
 
     return {
-        "id": f"mal_{mal_id}",
+        "id": f"mwh_mal_{mal_id}",
         "type": "series",
         "name": title,
         "poster": poster,
@@ -168,29 +173,25 @@ def anime_to_meta(anime):
         "imdbRating": str(score) if score else None,
         "genres": genres,
         "description": synopsis[:300] if synopsis else "",
+        "background": poster,
     }
 
 
-# ─── IPTV Catalog ────────────────────────────────────────────
+# ─── IPTV ────────────────────────────────────────────────────
 
-def load_iptv_country(country):
-    """Load IPTV streams for a specific country."""
-    safe = country.lower().replace(" ", "_")
-    filepath = os.path.join(DATA_DIR, f"hq_{safe}.json")
+def load_iptv_streams(country="all"):
+    if country == "all":
+        all_streams = []
+        for fname in sorted(os.listdir(DATA_DIR)):
+            if fname.startswith("hq_") and fname.endswith(".json"):
+                with open(os.path.join(DATA_DIR, fname)) as f:
+                    all_streams.extend(json.load(f))
+        return all_streams
+    filepath = os.path.join(DATA_DIR, f"hq_{country}.json")
     if os.path.exists(filepath):
         with open(filepath) as f:
             return json.load(f)
     return []
-
-
-def load_iptv_all():
-    """Load all IPTV streams."""
-    all_streams = []
-    for fname in sorted(os.listdir(DATA_DIR)):
-        if fname.startswith("hq_") and fname.endswith(".json"):
-            with open(os.path.join(DATA_DIR, fname)) as f:
-                all_streams.extend(json.load(f))
-    return all_streams
 
 
 def load_fifa():
@@ -199,6 +200,24 @@ def load_fifa():
         with open(filepath) as f:
             return json.load(f)
     return []
+
+
+def filter_streams(streams, min_res="1080p"):
+    if min_res == "all":
+        return streams
+    filtered = []
+    for s in streams:
+        q = s.get("quality", "Unknown")
+        name = s.get("name", "").lower()
+        if "geo-blocked" in name:
+            continue
+        if min_res == "4k" and q == "4K":
+            filtered.append(s)
+        elif min_res == "1080p" and q in ("4K", "1080p"):
+            filtered.append(s)
+        elif min_res == "720p" and q in ("4K", "1080p", "720p"):
+            filtered.append(s)
+    return filtered
 
 
 # ─── Routes ──────────────────────────────────────────────────
@@ -226,14 +245,8 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
     # ── IPTV ─────────────────────────────────────────────────
     if catalog_id.startswith("mwh_iptv_"):
         country_key = catalog_id.replace("mwh_iptv_", "")
-
-        if country_key == "all":
-            streams = load_iptv_all()
-        else:
-            streams = load_iptv_country(country_key)
-
-        # Filter by resolution
-        streams = filter_by_resolution(streams, min_res)
+        streams = load_iptv_streams(country_key)
+        streams = filter_streams(streams, min_res)
 
         metas = []
         for i, s in enumerate(streams[:200]):
@@ -241,33 +254,39 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
                 "id": f"mwh_iptv_{i}_{country_key}",
                 "type": "tv",
                 "name": s.get("name", "Unknown"),
-                "poster": None,
+                "poster": s.get("logo") or s.get("tvg_logo") or "https://img.icons8.com/color/96/tv.png",
+                "background": "https://img.icons8.com/color/96/tv.png",
             })
         return JSONResponse({"metas": metas})
 
     # ── FIFA ─────────────────────────────────────────────────
     if catalog_id == "mwh_fifa":
-        streams = load_fifa()
-        streams = filter_by_resolution(streams, min_res)
+        streams = filter_streams(load_fifa(), min_res)
         metas = []
         for i, s in enumerate(streams):
             metas.append({
                 "id": f"mwh_fifa_{i}",
                 "type": "tv",
                 "name": s.get("name", "Unknown"),
-                "poster": None,
+                "poster": "https://img.icons8.com/color/96/soccer-ball.png",
+                "background": "https://img.icons8.com/color/96/soccer-ball.png",
             })
         return JSONResponse({"metas": metas})
 
     # ── Anime (Jikan) ────────────────────────────────────────
-    if catalog_id in ("mwh_anime_top", "mwh_anime_seasonal", "mwh_anime"):
+    if catalog_id.startswith("mwh_anime"):
         async with httpx.AsyncClient(timeout=httpx.Timeout(10), follow_redirects=True) as client:
             if catalog_id == "mwh_anime_top":
-                anime_list = await fetch_jikan(client, "top/anime?limit=25")
+                endpoint = "top/anime?limit=25"
             elif catalog_id == "mwh_anime_seasonal":
-                anime_list = await fetch_jikan(client, "seasons/now?limit=25")
+                endpoint = "seasons/now?limit=25"
             else:
-                anime_list = await fetch_jikan(client, "top/anime?limit=25")
+                endpoint = "top/anime?limit=25"
+            try:
+                r = await client.get(f"https://api.jikan.moe/v4/{endpoint}", timeout=10)
+                anime_list = r.json().get("data", []) if r.status_code == 200 else []
+            except:
+                anime_list = []
             metas = [anime_to_meta(a) for a in anime_list]
             return JSONResponse({"metas": metas})
 
@@ -284,55 +303,24 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
     metas = _catalog_cache.get(section_key, [])
     if not metas and not _catalog_cache:
         async with httpx.AsyncClient(timeout=httpx.Timeout(15), follow_redirects=True) as client:
-            metas = await build_moviebox_section(client, section["gid"], section["type"])
+            metas, _ = await build_moviebox_section(client, section["gid"], section["type"])
             _catalog_cache[section_key] = metas
 
     return JSONResponse({"metas": metas[:200]})
 
 
-def filter_by_resolution(streams, min_res):
-    """Filter streams by minimum resolution."""
-    if min_res == "all":
-        return streams
-    filtered = []
-    for s in streams:
-        q = s.get("quality", "Unknown")
-        name = s.get("name", "").lower()
-        lat = s.get("latency_ms", 9999)
-
-        # Skip geo-blocked
-        if "geo-blocked" in name:
-            continue
-
-        # Resolution check
-        if min_res == "4k":
-            if q == "4K":
-                filtered.append(s)
-        elif min_res == "1080p":
-            if q in ("4K", "1080p"):
-                filtered.append(s)
-        elif min_res == "720p":
-            if q in ("4K", "1080p", "720p"):
-                filtered.append(s)
-        else:
-            filtered.append(s)
-
-    return filtered
-
-
 async def refresh_catalog():
     global _catalog_cache, _cache_time
     async with httpx.AsyncClient(timeout=httpx.Timeout(15), follow_redirects=True) as client:
-        tasks = {k: build_moviebox_section(client, v["gid"], v["type"]) for k, v in MOVIEBOX_SECTIONS.items()}
-        results = await asyncio.gather(*tasks.values(), return_exceptions=True)
         new_cache = {}
         total = 0
-        for key, result in zip(tasks.keys(), results):
-            if isinstance(result, Exception):
+        for key, section in MOVIEBOX_SECTIONS.items():
+            try:
+                metas, _ = await build_moviebox_section(client, section["gid"], section["type"])
+                new_cache[key] = metas
+                total += len(metas)
+            except:
                 new_cache[key] = []
-            else:
-                new_cache[key] = result
-                total += len(result)
         _catalog_cache = new_cache
         _cache_time = time.time()
         print(f"[Catalog] Refreshed: {total} MovieBox items")
