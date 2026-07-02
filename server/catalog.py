@@ -1,4 +1,4 @@
-"""Max WheyTV — Catalog endpoints (IPTV, FIFA, Anime only)."""
+"""Max WheyTV — Catalog endpoints (TMDB Discover + IPTV + FIFA + Anime)."""
 import json
 import os
 import base64
@@ -6,6 +6,7 @@ import asyncio
 import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from server.config import TMDB_API_KEY
 
 router = APIRouter()
 
@@ -21,6 +22,114 @@ def parse_config(config_str: str) -> dict:
         return json.loads(decoded)
     except Exception:
         return {}
+
+
+# ─── TMDB → IMDB Resolution ──────────────────────────────────
+
+async def tmdb_to_imdb_batch(client, tmdb_ids, content_type="movie"):
+    """Resolve TMDB IDs to IMDB IDs in parallel."""
+    async def one(tid):
+        try:
+            endpoint = "movie" if content_type == "movie" else "tv"
+            r = await client.get(f"https://api.themoviedb.org/3/{endpoint}/{tid}/external_ids",
+                params={"api_key": TMDB_API_KEY}, timeout=8)
+            if r.status_code == 200:
+                return r.json().get("imdb_id")
+        except:
+            pass
+        return None
+
+    results = []
+    for i in range(0, len(tmdb_ids), 20):
+        batch = tmdb_ids[i:i+20]
+        results.extend(await asyncio.gather(*[one(t) for t in batch]))
+    return results
+
+
+# ─── TMDB Discover ───────────────────────────────────────────
+
+async def tmdb_discover(client, content_type="movie", params=None):
+    """Discover movies/series from TMDB."""
+    base_params = {
+        "api_key": TMDB_API_KEY,
+        "sort_by": "popularity.desc",
+        "vote_count.gte": "50",
+    }
+    if params:
+        base_params.update(params)
+
+    try:
+        r = await client.get(f"https://api.themoviedb.org/3/discover/{content_type}", params=base_params, timeout=10)
+        if r.status_code == 200:
+            results = r.json().get("results", [])
+            # Resolve TMDB IDs to IMDB IDs in batch
+            tmdb_ids = [str(item.get("id")) for item in results]
+            imdb_ids = await tmdb_to_imdb_batch(client, tmdb_ids, content_type)
+
+            metas = []
+            for item, imdb_id in zip(results, imdb_ids):
+                tmdb_id = item.get("id")
+                title = item.get("title") or item.get("name", "")
+                poster = item.get("poster_path")
+                backdrop = item.get("backdrop_path")
+                year = (item.get("release_date") or item.get("first_air_date") or "")[:4]
+                rating = item.get("vote_average")
+                overview = item.get("overview", "")
+
+                # Use IMDB ID if available, else TMDB ID
+                meta_id = imdb_id if imdb_id else f"tmdb_{tmdb_id}"
+
+                metas.append({
+                    "id": meta_id,
+                    "type": content_type,
+                    "name": title,
+                    "poster": f"https://image.tmdb.org/t/p/w500{poster}" if poster else None,
+                    "background": f"https://image.tmdb.org/t/p/original{backdrop}" if backdrop else None,
+                    "releaseInfo": year,
+                    "imdbRating": str(round(rating, 1)) if rating else None,
+                    "description": overview[:300] if overview else "",
+                })
+            return metas
+    except Exception as e:
+        print(f"[TMDB] Discover error: {e}")
+    return []
+
+
+async def tmdb_trending(client, content_type="movie", time_window="week"):
+    """Get trending content from TMDB."""
+    try:
+        r = await client.get(f"https://api.themoviedb.org/3/trending/{content_type}/{time_window}",
+            params={"api_key": TMDB_API_KEY}, timeout=10)
+        if r.status_code == 200:
+            results = r.json().get("results", [])
+            # Resolve TMDB IDs to IMDB IDs in batch
+            tmdb_ids = [str(item.get("id")) for item in results]
+            imdb_ids = await tmdb_to_imdb_batch(client, tmdb_ids, content_type)
+
+            metas = []
+            for item, imdb_id in zip(results, imdb_ids):
+                tmdb_id = item.get("id")
+                title = item.get("title") or item.get("name", "")
+                poster = item.get("poster_path")
+                backdrop = item.get("backdrop_path")
+                year = (item.get("release_date") or item.get("first_air_date") or "")[:4]
+                rating = item.get("vote_average")
+
+                meta_id = imdb_id if imdb_id else f"tmdb_{tmdb_id}"
+
+                metas.append({
+                    "id": meta_id,
+                    "type": content_type,
+                    "name": title,
+                    "poster": f"https://image.tmdb.org/t/p/w500{poster}" if poster else None,
+                    "background": f"https://image.tmdb.org/t/p/original{backdrop}" if backdrop else None,
+                    "releaseInfo": year,
+                    "imdbRating": str(round(rating, 1)) if rating else None,
+                })
+            return metas
+    except Exception as e:
+        print(f"[TMDB] Trending error: {e}")
+    return []
 
 
 # ─── IPTV ────────────────────────────────────────────────────
@@ -105,40 +214,73 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
     config = parse_config(config_str)
     min_res = config.get("resolution", "1080p")
 
-    # ── IPTV ─────────────────────────────────────────────────
-    if catalog_id.startswith("mwh_iptv_"):
-        country_key = catalog_id.replace("mwh_iptv_", "")
-        streams = filter_streams(load_iptv(country_key), min_res)
-        metas = []
-        for i, s in enumerate(streams[:200]):
-            metas.append({
-                "id": f"mwh_iptv_{i}_{country_key}",
-                "type": "tv",
-                "name": s.get("name", "Unknown"),
-                "poster": s.get("poster") or s.get("logo") or "https://img.icons8.com/color/200/tv.png",
-                "background": s.get("poster") or s.get("logo") or "https://img.icons8.com/color/200/tv.png",
-                "genres": [s.get("country", "General")],
-            })
-        return JSONResponse({"metas": metas})
+    async with httpx.AsyncClient(timeout=httpx.Timeout(10), follow_redirects=True) as client:
 
-    # ── FIFA ─────────────────────────────────────────────────
-    if catalog_id == "mwh_fifa":
-        streams = filter_streams(load_fifa(), min_res)
-        metas = []
-        for i, s in enumerate(streams):
-            metas.append({
-                "id": f"mwh_fifa_{i}",
-                "type": "tv",
-                "name": s.get("name", "Unknown"),
-                "poster": s.get("poster") or "https://img.icons8.com/color/200/soccer-ball.png",
-                "background": s.get("poster") or "https://img.icons8.com/color/200/soccer-ball.png",
-                "genres": ["Sports", "Football"],
-            })
-        return JSONResponse({"metas": metas})
+        # ── TMDB Movie Catalogs ──────────────────────────────
+        if catalog_id == "mwh_popular":
+            metas = await tmdb_discover(client, "movie", {"sort_by": "popularity.desc"})
+            return JSONResponse({"metas": metas[:100]})
 
-    # ── Anime (Jikan) ────────────────────────────────────────
-    if catalog_id.startswith("mwh_anime"):
-        async with httpx.AsyncClient(timeout=httpx.Timeout(10), follow_redirects=True) as client:
+        if catalog_id == "mwh_trending":
+            metas = await tmdb_trending(client, "movie", "week")
+            return JSONResponse({"metas": metas[:100]})
+
+        if catalog_id == "mwh_top_rated":
+            metas = await tmdb_discover(client, "movie", {"sort_by": "vote_average.desc", "vote_count.gte": "500"})
+            return JSONResponse({"metas": metas[:100]})
+
+        if catalog_id == "mwh_new":
+            metas = await tmdb_discover(client, "movie", {"sort_by": "release_date.desc", "release_date.lte": "2026-12-31"})
+            return JSONResponse({"metas": metas[:100]})
+
+        # ── Language-specific catalogs ───────────────────────
+        if catalog_id.startswith("mwh_lang_"):
+            lang = catalog_id.replace("mwh_lang_", "")
+            metas = await tmdb_discover(client, "movie", {"with_original_language": lang, "sort_by": "popularity.desc"})
+            return JSONResponse({"metas": metas[:100]})
+
+        # ── TMDB Series Catalogs ─────────────────────────────
+        if catalog_id == "mwh_popular_series":
+            metas = await tmdb_discover(client, "tv", {"sort_by": "popularity.desc"})
+            return JSONResponse({"metas": metas[:100]})
+
+        if catalog_id == "mwh_airing_today":
+            metas = await tmdb_discover(client, "tv", {"sort_by": "popularity.desc", "air_date.gte": "2026-06-01"})
+            return JSONResponse({"metas": metas[:100]})
+
+        # ── IPTV ─────────────────────────────────────────────
+        if catalog_id.startswith("mwh_iptv_"):
+            country_key = catalog_id.replace("mwh_iptv_", "")
+            streams = filter_streams(load_iptv(country_key), min_res)
+            metas = []
+            for i, s in enumerate(streams[:200]):
+                metas.append({
+                    "id": f"mwh_iptv_{i}_{country_key}",
+                    "type": "tv",
+                    "name": s.get("name", "Unknown"),
+                    "poster": s.get("poster") or s.get("logo") or "https://img.icons8.com/color/200/tv.png",
+                    "background": s.get("poster") or s.get("logo") or "https://img.icons8.com/color/200/tv.png",
+                    "genres": [s.get("country", "General")],
+                })
+            return JSONResponse({"metas": metas})
+
+        # ── FIFA ─────────────────────────────────────────────
+        if catalog_id == "mwh_fifa":
+            streams = filter_streams(load_fifa(), min_res)
+            metas = []
+            for i, s in enumerate(streams):
+                metas.append({
+                    "id": f"mwh_fifa_{i}",
+                    "type": "tv",
+                    "name": s.get("name", "Unknown"),
+                    "poster": s.get("poster") or "https://img.icons8.com/color/200/soccer-ball.png",
+                    "background": s.get("poster") or "https://img.icons8.com/color/200/soccer-ball.png",
+                    "genres": ["Sports", "Football"],
+                })
+            return JSONResponse({"metas": metas})
+
+        # ── Anime (Jikan) ────────────────────────────────────
+        if catalog_id.startswith("mwh_anime"):
             if catalog_id == "mwh_anime_top":
                 endpoint = "top/anime?limit=25"
             elif catalog_id == "mwh_anime_seasonal":

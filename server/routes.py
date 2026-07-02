@@ -47,6 +47,11 @@ async def meta_endpoint(request: Request, type: str, id: str):
         if id.startswith("tt"):
             return await get_tmdb_meta(id, type)
 
+        # ── TMDB IDs ─────────────────────────────────────────
+        if id.startswith("tmdb_"):
+            tmdb_id = id.replace("tmdb_", "")
+            return await get_tmdb_meta_by_id(tmdb_id, type)
+
     except Exception as e:
         print(f"[Meta] Error for {id}: {e}")
 
@@ -207,6 +212,60 @@ async def get_tmdb_meta(imdb_id: str, type: str):
         print(f"[Meta] TMDB error: {e}")
 
     return JSONResponse({"meta": {"id": imdb_id, "type": type, "name": "Unknown"}})
+
+
+async def get_tmdb_meta_by_id(tmdb_id: str, type: str):
+    """Get metadata directly from TMDB ID."""
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10), follow_redirects=True) as client:
+            endpoint = "movie" if type == "movie" else "tv"
+            r = await client.get(f"https://api.themoviedb.org/3/{endpoint}/{tmdb_id}",
+                params={"api_key": TMDB_API_KEY, "language": "en-US"}, timeout=8)
+            if r.status_code == 200:
+                data = r.json()
+                poster = data.get("poster_path")
+                backdrop = data.get("backdrop_path")
+                title = data.get("title") or data.get("name", "")
+                year = (data.get("release_date") or data.get("first_air_date") or "")[:4]
+                rating = data.get("vote_average")
+                overview = data.get("overview", "")
+                genres = [g["name"] for g in data.get("genres", [])]
+
+                meta = {
+                    "id": f"tmdb_{tmdb_id}", "type": type, "name": title,
+                    "releaseInfo": year,
+                    "poster": f"https://image.tmdb.org/t/p/w500{poster}" if poster else None,
+                    "background": f"https://image.tmdb.org/t/p/original{backdrop}" if backdrop else None,
+                    "description": overview[:500] if overview else "",
+                    "genres": genres,
+                    "imdbRating": str(round(rating, 1)) if rating else None,
+                    "posterShape": "poster",
+                }
+
+                # Add episodes for series
+                if type == "series":
+                    videos = []
+                    for season in data.get("seasons", []):
+                        s_num = season.get("season_number", 0)
+                        if s_num == 0:
+                            continue
+                        s_detail = await client.get(
+                            f"https://api.themoviedb.org/3/tv/{tmdb_id}/season/{s_num}",
+                            params={"api_key": TMDB_API_KEY, "language": "en-US"}, timeout=8)
+                        if s_detail.status_code == 200:
+                            for ep in s_detail.json().get("episodes", []):
+                                videos.append({
+                                    "id": f"tmdb_{tmdb_id}:{s_num}:{ep.get('episode_number')}",
+                                    "title": ep.get("name", ""),
+                                    "season": s_num, "episode": ep.get("episode_number"),
+                                    "released": (ep.get("air_date") or "")[:10],
+                                })
+                    meta["videos"] = videos[:200]
+
+                return JSONResponse({"meta": meta})
+    except Exception as e:
+        print(f"[Meta] TMDB error: {e}")
+    return JSONResponse({"meta": {"id": f"tmdb_{tmdb_id}", "type": type, "name": "Unknown"}})
 
 
 # ─── STREAM ──────────────────────────────────────────────────

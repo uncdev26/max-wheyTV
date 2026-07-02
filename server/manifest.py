@@ -1,4 +1,4 @@
-"""Max WheyTV — Manifest. Streams only for movies/series. Full IPTV/FIFA/Anime."""
+"""Max WheyTV — Manifest. TMDB catalog + IPTV + streams."""
 from pydantic import BaseModel
 
 
@@ -18,11 +18,40 @@ class Manifest(BaseModel):
 
 def get_manifest(config: dict = None) -> Manifest:
     config = config or {}
+    movies_enabled = config.get("movies", True)
     iptv_enabled = config.get("iptv", True)
     fifa_enabled = config.get("fifa", True)
     anime_enabled = config.get("anime", True)
+    languages = config.get("languages", ["all"])
 
     catalogs = []
+
+    # Movie catalogs (TMDB Discover — ALL languages)
+    if movies_enabled:
+        catalogs.extend([
+            {"id": "mwh_popular",    "type": "movie",  "name": "🔥 Popular Movies"},
+            {"id": "mwh_trending",   "type": "movie",  "name": "📈 Trending Now"},
+            {"id": "mwh_top_rated",  "type": "movie",  "name": "⭐ Top Rated"},
+            {"id": "mwh_new",        "type": "movie",  "name": "🆕 New Releases"},
+        ])
+
+        # Language-specific catalogs
+        if "all" not in languages:
+            lang_names = {
+                "hi": "Hindi", "en": "English", "es": "Spanish", "fr": "French",
+                "de": "German", "pt": "Portuguese", "ru": "Russian", "ja": "Japanese",
+                "ko": "Korean", "zh": "Chinese", "ar": "Arabic", "tr": "Turkish",
+                "ta": "Tamil", "te": "Telugu", "th": "Thai",
+            }
+            for lang in languages:
+                if lang in lang_names:
+                    catalogs.append({"id": f"mwh_lang_{lang}", "type": "movie", "name": f"🎬 {lang_names[lang]} Movies"})
+
+        # Series catalogs
+        catalogs.extend([
+            {"id": "mwh_popular_series", "type": "series", "name": "📺 Popular Series"},
+            {"id": "mwh_airing_today",   "type": "series", "name": "📅 Airing Today"},
+        ])
 
     # Anime catalogs
     if anime_enabled:
@@ -49,10 +78,11 @@ def get_manifest(config: dict = None) -> Manifest:
         id="com.maxwheytv.addon",
         version="1.0.0",
         name="Max WheyTV",
-        description="Universal streaming — IPTV, FIFA, Anime & MovieBox streams.",
+        description="Universal streaming — Movies, Series & Live TV from every corner of the world.",
         resources=[
-            # Movie/Series streams only (no catalog — use Netflix addon for catalogs)
-            {"name": "stream", "types": ["movie", "series"], "idPrefixes": ["tt"]},
+            # Movies/Series: catalog + stream (Cinemeta handles metadata)
+            {"name": "catalog", "types": ["movie", "series"], "idPrefixes": ["tt", "tmdb_"]},
+            {"name": "stream",  "types": ["movie", "series"], "idPrefixes": ["tt", "tmdb_"]},
             # IPTV: full catalog + meta + stream
             {"name": "catalog", "types": ["tv"], "idPrefixes": ["mwh_"]},
             {"name": "meta",    "types": ["tv"], "idPrefixes": ["mwh_"]},
@@ -60,7 +90,7 @@ def get_manifest(config: dict = None) -> Manifest:
         ],
         types=["movie", "series", "tv"],
         catalogs=catalogs,
-        idPrefixes=["tt", "mwh_"],
+        idPrefixes=["tt", "mwh_", "tmdb_"],
         background="https://raw.githubusercontent.com/Stremio/stremio-art/main/originals/Ahlen%20Ken%20A.%20Batalon.png",
         behaviorHints={"configurable": True, "configurationRequired": False},
     )

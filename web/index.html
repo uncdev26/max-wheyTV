@@ -110,7 +110,30 @@
             </div>
         </div>
 
-        <!-- LANGUAGE -->
+        <!-- MOVIE LANGUAGES -->
+        <div class="section">
+            <h3>🎬 Movie Languages</h3>
+            <p style="font-size:12px; color:#888; margin-bottom:12px;">Select languages for movie catalog. Each language gets its own catalog section in Stremio.</p>
+            <div class="checkbox-grid" id="movieLangGrid">
+                <label class="checkbox-item selected" data-value="all"><div class="check"></div><span>🌍 All Languages</span></label>
+                <label class="checkbox-item" data-value="hi"><div class="check"></div><span>🇮🇳 Hindi</span></label>
+                <label class="checkbox-item" data-value="en"><div class="check"></div><span>🇺🇸 English</span></label>
+                <label class="checkbox-item" data-value="es"><div class="check"></div><span>🇪🇸 Spanish</span></label>
+                <label class="checkbox-item" data-value="fr"><div class="check"></div><span>🇫🇷 French</span></label>
+                <label class="checkbox-item" data-value="de"><div class="check"></div><span>🇩🇪 German</span></label>
+                <label class="checkbox-item" data-value="pt"><div class="check"></div><span>🇧🇷 Portuguese</span></label>
+                <label class="checkbox-item" data-value="ru"><div class="check"></div><span>🇷🇺 Russian</span></label>
+                <label class="checkbox-item" data-value="ja"><div class="check"></div><span>🇯🇵 Japanese</span></label>
+                <label class="checkbox-item" data-value="ko"><div class="check"></div><span>🇰🇷 Korean</span></label>
+                <label class="checkbox-item" data-value="zh"><div class="check"></div><span>🇨🇳 Chinese</span></label>
+                <label class="checkbox-item" data-value="ar"><div class="check"></div><span>🇸🇦 Arabic</span></label>
+                <label class="checkbox-item" data-value="tr"><div class="check"></div><span>🇹🇷 Turkish</span></label>
+                <label class="checkbox-item" data-value="ta"><div class="check"></div><span>🇮🇳 Tamil</span></label>
+                <label class="checkbox-item" data-value="te"><div class="check"></div><span>🇮🇳 Telugu</span></label>
+            </div>
+        </div>
+
+        <!-- STREAM LANGUAGE -->
         <div class="section">
             <h3>🔊 Stream Language Preference</h3>
             <div class="checkbox-grid" id="langGrid">
@@ -183,6 +206,7 @@
         }
 
         setupGrid('countryGrid', 'iptv_countries');
+        setupGrid('movieLangGrid', 'languages');
         setupGrid('langGrid', 'languages');
 
         document.getElementById('iptv').addEventListener('change', e => { state.iptv = e.target.checked; updateLink(); });
