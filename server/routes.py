@@ -450,6 +450,8 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
 
             # Clean stream title: quality + audio language only
             desc = f"🎬 {res_text}"
+            if size_text:
+                desc += f" • 💾 {size_text}"
             if audio:
                 desc += f" • {audio}"
 
