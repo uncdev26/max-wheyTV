@@ -20,6 +20,7 @@
         .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #1e1e2e; }
         .toggle-row:last-child { border-bottom: none; }
         .toggle-label { font-size: 14px; }
+        .toggle-sub { font-size: 11px; color: #666; margin-top: 2px; }
         .toggle { position: relative; width: 44px; height: 24px; cursor: pointer; }
         .toggle input { opacity: 0; width: 0; height: 0; }
         .toggle .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #333; border-radius: 12px; transition: 0.3s; }
@@ -27,7 +28,7 @@
         .toggle input:checked + .slider { background: #e50914; }
         .toggle input:checked + .slider:before { transform: translateX(20px); }
         .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-        .checkbox-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #1a1a2e; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 13px; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #1a1a2e; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 13px; border: 1px solid transparent; }
         .checkbox-item:hover { background: #252540; }
         .checkbox-item.selected { background: #2a1a1a; border: 1px solid #e50914; }
         .checkbox-item input { display: none; }
@@ -49,25 +50,34 @@
         .link-box input { flex: 1; padding: 10px 12px; background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; color: #888; font-size: 12px; }
         .link-box button { padding: 10px 16px; background: #252540; border: 1px solid #2a2a3e; border-radius: 8px; color: #fff; cursor: pointer; }
         .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #27ae60; color: #fff; padding: 12px 24px; border-radius: 8px; display: none; z-index: 999; }
+        .divider { height: 1px; background: #1e1e2e; margin: 16px 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>Max WheyTV</h1>
-            <p>Configure your streaming experience</p>
+            <p>Universal Streaming — Movies, Series & Live TV</p>
         </div>
 
-        <!-- MOVIES & SERIES -->
+        <!-- TOGGLES -->
         <div class="section">
-            <h3><span class="icon">🎬</span> Movies & Series</h3>
+            <h3><span class="icon">⚡</span> Enable / Disable</h3>
             <div class="toggle-row">
-                <span class="toggle-label">Enable Movies & Series</span>
+                <div><div class="toggle-label">🎬 Movies & Series</div><div class="toggle-sub">MovieBox backend — 1000+ titles</div></div>
                 <label class="toggle"><input type="checkbox" id="movies" checked><span class="slider"></span></label>
             </div>
             <div class="toggle-row">
-                <span class="toggle-label">Enable IPTV Live TV</span>
+                <div><div class="toggle-label">🎌 Anime</div><div class="toggle-sub">Jikan/MAL — Top & Seasonal anime</div></div>
+                <label class="toggle"><input type="checkbox" id="anime" checked><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div><div class="toggle-label">📺 IPTV Live TV</div><div class="toggle-sub">865 channels — 1080p+ only</div></div>
                 <label class="toggle"><input type="checkbox" id="iptv" checked><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div><div class="toggle-label">⚽ FIFA & Football</div><div class="toggle-sub">World Cup, FIFA+, La Liga, Real Madrid TV</div></div>
+                <label class="toggle"><input type="checkbox" id="fifa" checked><span class="slider"></span></label>
             </div>
         </div>
 
@@ -75,7 +85,7 @@
         <div class="section" id="langSection">
             <h3><span class="icon">🌍</span> Languages</h3>
             <div class="checkbox-grid" id="langGrid">
-                <label class="checkbox-item selected" data-value="all"><div class="check"></div><span>All</span></label>
+                <label class="checkbox-item selected" data-value="all"><div class="check"></div><span>All Languages</span></label>
                 <label class="checkbox-item" data-value="en"><div class="check"></div><span>🇺🇸 English</span></label>
                 <label class="checkbox-item" data-value="hi"><div class="check"></div><span>🇮🇳 Hindi</span></label>
                 <label class="checkbox-item" data-value="es"><div class="check"></div><span>🇪🇸 Spanish</span></label>
@@ -97,19 +107,19 @@
         <div class="section" id="iptvSection">
             <h3><span class="icon">📺</span> IPTV Countries</h3>
             <div class="checkbox-grid" id="countryGrid">
-                <label class="checkbox-item selected" data-value="All"><div class="check"></div><span>🌍 All</span></label>
-                <label class="checkbox-item" data-value="India"><div class="check"></div><span>🇮🇳 India</span></label>
-                <label class="checkbox-item" data-value="United States"><div class="check"></div><span>🇺🇸 United States</span></label>
-                <label class="checkbox-item" data-value="United Kingdom"><div class="check"></div><span>🇬🇧 United Kingdom</span></label>
-                <label class="checkbox-item" data-value="Germany"><div class="check"></div><span>🇩🇪 Germany</span></label>
-                <label class="checkbox-item" data-value="France"><div class="check"></div><span>🇫🇷 France</span></label>
-                <label class="checkbox-item" data-value="Turkey"><div class="check"></div><span>🇹🇷 Turkey</span></label>
-                <label class="checkbox-item" data-value="Saudi Arabia"><div class="check"></div><span>🇸🇦 Saudi Arabia</span></label>
-                <label class="checkbox-item" data-value="UAE"><div class="check"></div><span>🇦🇪 UAE</span></label>
-                <label class="checkbox-item" data-value="South Korea"><div class="check"></div><span>🇰🇷 South Korea</span></label>
-                <label class="checkbox-item" data-value="Japan"><div class="check"></div><span>🇯🇵 Japan</span></label>
-                <label class="checkbox-item" data-value="Pakistan"><div class="check"></div><span>🇵🇰 Pakistan</span></label>
-                <label class="checkbox-item" data-value="Arab"><div class="check"></div><span>🌍 Arab</span></label>
+                <label class="checkbox-item selected" data-value="All"><div class="check"></div><span>🌍 All Countries</span></label>
+                <label class="checkbox-item" data-value="India"><div class="check"></div><span>🇮🇳 India (169)</span></label>
+                <label class="checkbox-item" data-value="United States"><div class="check"></div><span>🇺🇸 United States (200)</span></label>
+                <label class="checkbox-item" data-value="United Kingdom"><div class="check"></div><span>🇬🇧 United Kingdom (33)</span></label>
+                <label class="checkbox-item" data-value="Germany"><div class="check"></div><span>🇩🇪 Germany (49)</span></label>
+                <label class="checkbox-item" data-value="France"><div class="check"></div><span>🇫🇷 France (46)</span></label>
+                <label class="checkbox-item" data-value="Turkey"><div class="check"></div><span>🇹🇷 Turkey (43)</span></label>
+                <label class="checkbox-item" data-value="Saudi Arabia"><div class="check"></div><span>🇸🇦 Saudi Arabia (45)</span></label>
+                <label class="checkbox-item" data-value="UAE"><div class="check"></div><span>🇦🇪 UAE (30)</span></label>
+                <label class="checkbox-item" data-value="South Korea"><div class="check"></div><span>🇰🇷 South Korea (10)</span></label>
+                <label class="checkbox-item" data-value="Japan"><div class="check"></div><span>🇯🇵 Japan (4)</span></label>
+                <label class="checkbox-item" data-value="Pakistan"><div class="check"></div><span>🇵🇰 Pakistan (4)</span></label>
+                <label class="checkbox-item" data-value="Arab"><div class="check"></div><span>🌍 Arab (32)</span></label>
             </div>
         </div>
 
@@ -117,7 +127,7 @@
         <div class="section" id="catSection">
             <h3><span class="icon">🏷️</span> IPTV Categories</h3>
             <div class="checkbox-grid" id="catGrid">
-                <label class="checkbox-item selected" data-value="All"><div class="check"></div><span>All</span></label>
+                <label class="checkbox-item selected" data-value="All"><div class="check"></div><span>All Categories</span></label>
                 <label class="checkbox-item" data-value="Sports"><div class="check"></div><span>⚽ Sports</span></label>
                 <label class="checkbox-item" data-value="News"><div class="check"></div><span>📰 News</span></label>
                 <label class="checkbox-item" data-value="Movies"><div class="check"></div><span>🎬 Movies</span></label>
@@ -131,13 +141,16 @@
 
         <!-- RESOLUTION -->
         <div class="section">
-            <h3><span class="icon">📐</span> Resolution</h3>
+            <h3><span class="icon">📐</span> Minimum Resolution</h3>
             <div class="dropdown" id="resDropdown">
-                <div class="dropdown-trigger" onclick="toggleDropdown('resMenu')"><span id="resDisplay">All Resolutions</span><span class="material-symbols-rounded">expand_more</span></div>
+                <div class="dropdown-trigger" onclick="toggleDropdown('resMenu')">
+                    <span id="resDisplay">1080p and Above</span>
+                    <span class="material-symbols-rounded">expand_more</span>
+                </div>
                 <div class="dropdown-menu" id="resMenu">
-                    <div class="dropdown-item selected" data-value="all" onclick="selectDropdown('res', this)">All Resolutions</div>
+                    <div class="dropdown-item" data-value="all" onclick="selectDropdown('res', this)">All Resolutions</div>
                     <div class="dropdown-item" data-value="4k" onclick="selectDropdown('res', this)">4K Only</div>
-                    <div class="dropdown-item" data-value="1080p" onclick="selectDropdown('res', this)">1080p and Above</div>
+                    <div class="dropdown-item selected" data-value="1080p" onclick="selectDropdown('res', this)">1080p and Above</div>
                     <div class="dropdown-item" data-value="720p" onclick="selectDropdown('res', this)">720p and Above</div>
                 </div>
             </div>
@@ -147,7 +160,10 @@
         <div class="section">
             <h3><span class="icon">📱</span> Platform</h3>
             <div class="dropdown" id="platDropdown">
-                <div class="dropdown-trigger" onclick="toggleDropdown('platMenu')"><span id="platDisplay">Auto Detect</span><span class="material-symbols-rounded">expand_more</span></div>
+                <div class="dropdown-trigger" onclick="toggleDropdown('platMenu')">
+                    <span id="platDisplay">Auto Detect</span>
+                    <span class="material-symbols-rounded">expand_more</span>
+                </div>
                 <div class="dropdown-menu" id="platMenu">
                     <div class="dropdown-item selected" data-value="auto" onclick="selectDropdown('plat', this)">Auto Detect</div>
                     <div class="dropdown-item" data-value="tv" onclick="selectDropdown('plat', this)">Android TV / Fire TV (Fast ~2s)</div>
@@ -157,7 +173,7 @@
             </div>
         </div>
 
-        <!-- INSTALL BUTTONS -->
+        <!-- INSTALL -->
         <div style="margin-top: 24px;">
             <button class="btn btn-primary" id="installApp"><span class="material-symbols-rounded">phone_iphone</span> Install to App</button>
             <button class="btn btn-secondary" id="installWeb"><span class="material-symbols-rounded">language</span> Install to Web</button>
@@ -171,17 +187,15 @@
     <div class="toast" id="toast">Copied!</div>
 
     <script>
-        // State
         const state = {
-            movies: true, iptv: true,
+            movies: true, anime: true, iptv: true, fifa: true,
             languages: ['all'],
             iptv_countries: ['All'],
             iptv_categories: ['All'],
-            resolution: 'all',
+            resolution: '1080p',
             platform: 'auto',
         };
 
-        // Checkbox grid logic
         function setupGrid(gridId, stateKey) {
             const grid = document.getElementById(gridId);
             grid.querySelectorAll('.checkbox-item').forEach(item => {
@@ -192,7 +206,6 @@
                         grid.querySelectorAll('.checkbox-item').forEach(i => i.classList.remove('selected'));
                         item.classList.add('selected');
                     } else {
-                        // Remove 'all' if specific selected
                         const allItem = grid.querySelector('[data-value="all"], [data-value="All"]');
                         if (allItem) { allItem.classList.remove('selected'); state[stateKey] = state[stateKey].filter(v => v !== 'all' && v !== 'All'); }
                         if (item.classList.contains('selected')) {
@@ -213,11 +226,11 @@
         setupGrid('countryGrid', 'iptv_countries');
         setupGrid('catGrid', 'iptv_categories');
 
-        // Toggles
         document.getElementById('movies').addEventListener('change', e => { state.movies = e.target.checked; updateLink(); });
+        document.getElementById('anime').addEventListener('change', e => { state.anime = e.target.checked; updateLink(); });
         document.getElementById('iptv').addEventListener('change', e => { state.iptv = e.target.checked; updateLink(); });
+        document.getElementById('fifa').addEventListener('change', e => { state.fifa = e.target.checked; updateLink(); });
 
-        // Dropdown logic
         function toggleDropdown(id) {
             document.querySelectorAll('.dropdown-menu').forEach(m => { if (m.id !== id) m.classList.remove('open'); });
             document.getElementById(id).classList.toggle('open');
@@ -235,7 +248,6 @@
 
         document.addEventListener('click', e => { if (!e.target.closest('.dropdown')) document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open')); });
 
-        // Generate manifest URL
         function updateLink() {
             const config = { ...state };
             const json = JSON.stringify(config);

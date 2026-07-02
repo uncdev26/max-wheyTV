@@ -19,7 +19,9 @@ class Manifest(BaseModel):
 def get_manifest(config: dict = None) -> Manifest:
     config = config or {}
     movies_enabled = config.get("movies", True)
+    anime_enabled = config.get("anime", True)
     iptv_enabled = config.get("iptv", True)
+    fifa_enabled = config.get("fifa", True)
     iptv_countries = config.get("iptv_countries", [])
     iptv_categories = config.get("iptv_categories", [])
 
@@ -58,7 +60,8 @@ def get_manifest(config: dict = None) -> Manifest:
                 "name": f"📺 {country} TV",
             })
         # FIFA
-        catalogs.append({"id": "mwh_fifa", "type": "tv", "name": "⚽ FIFA & Football"})
+        if fifa_enabled:
+            catalogs.append({"id": "mwh_fifa", "type": "tv", "name": "⚽ FIFA & Football"})
 
     return Manifest(
         id="com.maxwheytv.addon",
