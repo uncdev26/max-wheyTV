@@ -1,0 +1,128 @@
+[
+  {
+    "name": "GoodTV (1080p)",
+    "url": "http://mobliestream.c3tv.com:1935/live/goodtv.sdp/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 734,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "MBC Gangwon (MBC \uac15\uc6d0\uc601\ub3d9) (1080p) [Not 24/7]",
+    "url": "http://123.254.93.7:1935/tvlive/livestream2/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 809,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "Gugbang TV (1080p) [Not 24/7]",
+    "url": "http://mediaworks.dema.mil.kr:1935/live_edge/cudo.sdp/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 824,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "Korea TV (1080p)",
+    "url": "https://hlive.ktv.go.kr/live/klive_h.stream/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 894,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "SBS KBC (1080p) [Not 24/7]",
+    "url": "https://vod.ikbc.co.kr/KBCTV/tv/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 1210,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "MBC Yeosu (\uc5ec\uc218 MBC) (1080p) [Not 24/7]",
+    "url": "https://5c3639aa99149.streamlock.net/live_TV/tv/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 1278,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "GugakTV \uad6d\uc545\ubc29\uc1a1 (1080p)",
+    "url": "https://mgugaklive.nowcdn.co.kr/gugakvideo/gugakvideo.stream/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 1360,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "Arirang TV (1080p)",
+    "url": "http://amdlive-ch01.ctnd.com.edgesuite.net/arirang_1ch/smil:arirang_1ch.smil/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 1523,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "GS Shop (1080p)",
+    "url": "https://gstv-gsshop.gsshop.com/gsshop_hd/gsshop_hd.stream/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 1728,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "BTN TV (1080p)",
+    "url": "https://btn.nowcdn.co.kr/btn/btnlive2m/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 1737,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "BBS Buddhist Broadcasting (1080p)",
+    "url": "http://bbstv.clouducs.com:1935/bbstv-live/livestream/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 2022,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "Arirang TV UN (1080p)",
+    "url": "https://amdlive-ch02-ctnd-com.akamaized.net/arirang_2ch/smil:arirang_2ch.smil/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 2117,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "GS My Shop (1080p)",
+    "url": "https://gstv-myshop.gsshop.com/myshop_hd/myshop_hd.stream/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 2363,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "OUN (1080p)",
+    "url": "https://live.knou.ac.kr/knou1/live1/playlist.m3u8",
+    "country": "South Korea",
+    "source": "iptv-org",
+    "latency_ms": 2965,
+    "quality": "1080p",
+    "status": "\u2705"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Madani Channel Bangla (1080p)",
+    "url": "https://streaming.madanichannel.tv/static/streaming-playlists/hls/d3e49b76-ac06-4689-a641-9200445b647f/master.m3u8",
+    "country": "Pakistan",
+    "source": "iptv-org",
+    "latency_ms": 817,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "Fazal TV (1080p)",
+    "url": "http://cdn9.live247stream.com/punjabitvcanada/tv/playlist.m3u8",
+    "country": "Pakistan",
+    "source": "iptv-org",
+    "latency_ms": 832,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "Discover Pakistan (1080p)",
+    "url": "https://livecdn.live247stream.com/discoverpakistan/web/playlist.m3u8",
+    "country": "Pakistan",
+    "source": "iptv-org",
+    "latency_ms": 1166,
+    "quality": "1080p",
+    "status": "\u2705"
+  },
+  {
+    "name": "Neo News (1080p)",
+    "url": "https://vodzong.mjunoon.tv:8087/streamtest/Neo-110/playlist.m3u8",
+    "country": "Pakistan",
+    "source": "iptv-org",
+    "latency_ms": 1317,
+    "quality": "1080p",
+    "status": "\u2705"
+  }
+]

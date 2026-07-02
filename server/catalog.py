@@ -141,7 +141,7 @@ def load_iptv_streams():
     """Load IPTV streams from benchmark data."""
     streams = {}
     import os
-    benchmark_dir = "/home/asdev/entertainment/iptv_benchmark"
+    benchmark_dir = "data"
 
     for fname in os.listdir(benchmark_dir):
         if fname.startswith("hq_") and fname.endswith(".json") and fname != "hq_streams.json":

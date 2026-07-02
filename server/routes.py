@@ -165,7 +165,7 @@ async def handle_stream(request: Request, type: str, id: str, config_str: str):
 async def get_iptv_stream(id: str):
     """Get IPTV stream URL."""
     import os
-    benchmark_dir = "/home/asdev/entertainment/iptv_benchmark"
+    benchmark_dir = "data"
 
     try:
         # FIFA streams
