@@ -1,4 +1,4 @@
-"""Max WheyTV — Manifest."""
+"""Max WheyTV — Manifest. Streams only for movies/series. Full IPTV/FIFA/Anime."""
 from pydantic import BaseModel
 
 
@@ -18,33 +18,15 @@ class Manifest(BaseModel):
 
 def get_manifest(config: dict = None) -> Manifest:
     config = config or {}
-    movies_enabled = config.get("movies", True)
-    anime_enabled = config.get("anime", True)
     iptv_enabled = config.get("iptv", True)
     fifa_enabled = config.get("fifa", True)
+    anime_enabled = config.get("anime", True)
 
     catalogs = []
-
-    # Movie catalogs
-    if movies_enabled:
-        catalogs.extend([
-            {"id": "mwh_trending",     "type": "movie",  "name": "🔥 Trending"},
-            {"id": "mwh_cinema",       "type": "movie",  "name": "🎬 Cinema"},
-            {"id": "mwh_hollywood",    "type": "movie",  "name": "🇺🇸 Hollywood"},
-            {"id": "mwh_bollywood",    "type": "movie",  "name": "🇮🇳 Bollywood"},
-            {"id": "mwh_south_indian", "type": "movie",  "name": "🇮🇳 South Indian"},
-            {"id": "mwh_asian",        "type": "movie",  "name": "🌏 Asian"},
-            {"id": "mwh_turkish",      "type": "movie",  "name": "🇹🇷 Turkish"},
-        ])
-        catalogs.extend([
-            {"id": "mwh_top_series",   "type": "series", "name": "📺 Top Series"},
-            {"id": "mwh_indian_drama", "type": "series", "name": "🇮🇳 Indian Drama"},
-        ])
 
     # Anime catalogs
     if anime_enabled:
         catalogs.extend([
-            {"id": "mwh_anime",          "type": "series", "name": "🎌 Anime"},
             {"id": "mwh_anime_top",      "type": "series", "name": "🏆 Top Anime"},
             {"id": "mwh_anime_seasonal", "type": "series", "name": "🌸 Seasonal Anime"},
         ])
@@ -67,12 +49,11 @@ def get_manifest(config: dict = None) -> Manifest:
         id="com.maxwheytv.addon",
         version="1.0.0",
         name="Max WheyTV",
-        description="Universal streaming — Movies, Series & Live TV from every corner of the world.",
+        description="Universal streaming — IPTV, FIFA, Anime & MovieBox streams.",
         resources=[
-            # Movies/Series: catalog + stream only, NO meta (Cinemeta handles it)
-            {"name": "catalog", "types": ["movie", "series"], "idPrefixes": ["tt"]},
-            {"name": "stream",  "types": ["movie", "series"], "idPrefixes": ["tt"]},
-            # IPTV: catalog + meta + stream (we handle everything)
+            # Movie/Series streams only (no catalog — use Netflix addon for catalogs)
+            {"name": "stream", "types": ["movie", "series"], "idPrefixes": ["tt"]},
+            # IPTV: full catalog + meta + stream
             {"name": "catalog", "types": ["tv"], "idPrefixes": ["mwh_"]},
             {"name": "meta",    "types": ["tv"], "idPrefixes": ["mwh_"]},
             {"name": "stream",  "types": ["tv"], "idPrefixes": ["mwh_"]},
