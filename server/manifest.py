@@ -1,6 +1,6 @@
+"""Max WheyTV — Manifest."""
 from pydantic import BaseModel
 
-RPDB_KEY = "t0-free-rpdb"
 
 class Manifest(BaseModel):
     id: str
@@ -15,31 +15,62 @@ class Manifest(BaseModel):
     background: str | None = None
     behaviorHints: dict | None = None
 
-def get_manifest() -> Manifest:
+
+def get_manifest(config: dict = None) -> Manifest:
+    config = config or {}
+    movies_enabled = config.get("movies", True)
+    iptv_enabled = config.get("iptv", True)
+    iptv_countries = config.get("iptv_countries", [])
+    iptv_categories = config.get("iptv_categories", [])
+
+    catalogs = []
+
+    # Movie catalogs
+    if movies_enabled:
+        catalogs.extend([
+            {"id": "mwh_trending",     "type": "movie",  "name": "🔥 Trending"},
+            {"id": "mwh_cinema",       "type": "movie",  "name": "🎬 Cinema"},
+            {"id": "mwh_hollywood",    "type": "movie",  "name": "🇺🇸 Hollywood"},
+            {"id": "mwh_bollywood",    "type": "movie",  "name": "🇮🇳 Bollywood"},
+            {"id": "mwh_south_indian", "type": "movie",  "name": "🇮🇳 South Indian"},
+            {"id": "mwh_asian",        "type": "movie",  "name": "🌏 Asian"},
+            {"id": "mwh_turkish",      "type": "movie",  "name": "🇹🇷 Turkish"},
+        ])
+
+    # Series catalogs
+    if movies_enabled:
+        catalogs.extend([
+            {"id": "mwh_top_series",   "type": "series", "name": "📺 Top Series"},
+            {"id": "mwh_indian_drama", "type": "series", "name": "🇮🇳 Indian Drama"},
+            {"id": "mwh_anime",        "type": "series", "name": "🎌 Anime"},
+        ])
+
+    # IPTV catalogs
+    if iptv_enabled:
+        countries = iptv_countries if iptv_countries else ["All"]
+        for country in countries:
+            safe = country.lower().replace(" ", "_")
+            catalogs.append({
+                "id": f"mwh_iptv_{safe}",
+                "type": "tv",
+                "name": f"📺 {country} TV",
+            })
+        # FIFA
+        catalogs.append({"id": "mwh_fifa", "type": "tv", "name": "⚽ FIFA & Football"})
+
     return Manifest(
         id="com.maxwheytv.addon",
         version="1.0.0",
         name="Max WheyTV",
-        description="Universal streaming — 1000+ movies & series from every corner of the world.",
+        description="Universal streaming — Movies, Series & Live TV from every corner of the world.",
         resources=[
-            {"name": "catalog", "types": ["movie", "series"], "idPrefixes": ["tt"]},
-            {"name": "meta",    "types": ["movie", "series"], "idPrefixes": ["tt"]},
-            {"name": "stream",  "types": ["movie", "series"], "idPrefixes": ["tt"]},
+            {"name": "catalog", "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_"]},
+            {"name": "meta",    "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_"]},
+            {"name": "stream",  "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_"]},
         ],
-        types=["movie", "series"],
-        catalogs=[
-            {"id": "moviebox_trending",     "type": "movie",  "name": "🔥 Trending"},
-            {"id": "moviebox_cinema",       "type": "movie",  "name": "🎬 Cinema"},
-            {"id": "moviebox_hollywood",    "type": "movie",  "name": "🇺🇸 Hollywood"},
-            {"id": "moviebox_bollywood",    "type": "movie",  "name": "🇮🇳 Bollywood"},
-            {"id": "moviebox_south_indian", "type": "movie",  "name": "🇮🇳 South Indian"},
-            {"id": "moviebox_asian",        "type": "movie",  "name": "🌏 Asian"},
-            {"id": "moviebox_turkish",      "type": "movie",  "name": "🇹🇷 Turkish"},
-            {"id": "moviebox_top_series",   "type": "series", "name": "📺 Top Series"},
-            {"id": "moviebox_indian_drama", "type": "series", "name": "🇮🇳 Indian Drama"},
-            {"id": "moviebox_anime",        "type": "series", "name": "🎌 Anime"},
-        ],
-        idPrefixes=["tt"],
+        types=["movie", "series", "tv"],
+        catalogs=catalogs,
+        idPrefixes=["tt", "mwh_"],
         background="https://raw.githubusercontent.com/Stremio/stremio-art/main/originals/Ahlen%20Ken%20A.%20Batalon.png",
         behaviorHints={"configurable": True, "configurationRequired": False},
     )

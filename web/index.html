@@ -3,444 +3,258 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MovieBox | Stremio Addon</title>
+    <title>Max WheyTV — Configure</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="image" href="/logo.png">
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"></noscript>
-    <link rel="stylesheet" href="./css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
     <style>
-        .multi-select { position: relative; }
-        .multi-select-trigger {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 16px; background: var(--input-bg, #1a1a2e);
-            border: 1px solid var(--border, #2a2a4a); border-radius: 10px;
-            cursor: pointer; transition: border-color 0.2s;
-        }
-        .multi-select-trigger:hover { border-color: var(--accent, #6366f1); }
-        .multi-select-menu {
-            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-            background: var(--card-bg, #16162a); border: 1px solid var(--border, #2a2a4a);
-            border-radius: 10px; padding: 8px; max-height: 250px; overflow-y: auto;
-            z-index: 100; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-        }
-        .multi-select-menu.open { display: block; }
-        .multi-select-menu::-webkit-scrollbar { width: 6px; }
-        .multi-select-menu::-webkit-scrollbar-thumb { background: var(--border, #2a2a4a); border-radius: 3px; }
-        .multi-option {
-            display: flex; align-items: center; gap: 10px;
-            padding: 8px 12px; border-radius: 6px; cursor: pointer;
-            transition: background 0.15s; font-size: 14px;
-        }
-        .multi-option:hover { background: var(--hover, rgba(99,102,241,0.1)); }
-        .multi-option .check {
-            width: 18px; height: 18px; border: 2px solid var(--border, #2a2a4a);
-            border-radius: 4px; display: flex; align-items: center; justify-content: center;
-            transition: all 0.15s; flex-shrink: 0;
-        }
-        .multi-option.selected .check {
-            background: var(--accent, #6366f1); border-color: var(--accent, #6366f1);
-        }
-        .multi-option.selected .check::after {
-            content: '✓'; color: #fff; font-size: 11px; font-weight: 700;
-        }
-        .selected-tags {
-            display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
-        }
-        .tag {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 4px 10px; background: var(--accent-bg, rgba(99,102,241,0.15));
-            border: 1px solid var(--accent, #6366f1); border-radius: 20px;
-            font-size: 12px; color: var(--accent, #6366f1);
-        }
-        .tag .remove { cursor: pointer; opacity: 0.7; }
-        .tag .remove:hover { opacity: 1; }
-        .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted, #666); padding: 8px 12px 4px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #0a0a0f; color: #e0e0e0; min-height: 100vh; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; padding: 40px 0 20px; }
+        .header h1 { font-size: 32px; font-weight: 700; background: linear-gradient(135deg, #e50914, #ff6b35); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header p { color: #888; margin-top: 8px; font-size: 14px; }
+        .section { background: #14141f; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid #1e1e2e; }
+        .section h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .section h3 .icon { font-size: 20px; }
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #1e1e2e; }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 14px; }
+        .toggle { position: relative; width: 44px; height: 24px; cursor: pointer; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #333; border-radius: 12px; transition: 0.3s; }
+        .toggle .slider:before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        .toggle input:checked + .slider { background: #e50914; }
+        .toggle input:checked + .slider:before { transform: translateX(20px); }
+        .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #1a1a2e; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 13px; }
+        .checkbox-item:hover { background: #252540; }
+        .checkbox-item.selected { background: #2a1a1a; border: 1px solid #e50914; }
+        .checkbox-item input { display: none; }
+        .check { width: 16px; height: 16px; border: 2px solid #555; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: 0.2s; }
+        .checkbox-item.selected .check { background: #e50914; border-color: #e50914; }
+        .checkbox-item.selected .check::after { content: '✓'; color: #fff; font-size: 10px; font-weight: 700; }
+        .dropdown { position: relative; }
+        .dropdown-trigger { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .dropdown-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #16162a; border: 1px solid #2a2a3e; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; }
+        .dropdown-menu.open { display: block; }
+        .dropdown-item { padding: 10px 16px; cursor: pointer; font-size: 13px; }
+        .dropdown-item:hover { background: #252540; }
+        .dropdown-item.selected { background: #2a1a1a; color: #e50914; }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; transition: 0.2s; }
+        .btn-primary { background: #e50914; color: #fff; }
+        .btn-primary:hover { background: #ff1a25; }
+        .btn-secondary { background: #252540; color: #fff; margin-top: 8px; }
+        .link-box { display: flex; gap: 8px; margin-top: 12px; }
+        .link-box input { flex: 1; padding: 10px 12px; background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; color: #888; font-size: 12px; }
+        .link-box button { padding: 10px 16px; background: #252540; border: 1px solid #2a2a3e; border-radius: 8px; color: #fff; cursor: pointer; }
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #27ae60; color: #fff; padding: 12px 24px; border-radius: 8px; display: none; z-index: 999; }
     </style>
 </head>
 <body>
-    <div class="background-effects">
-        <div class="glow-orb orb-1"></div>
-        <div class="glow-orb orb-2"></div>
+    <div class="container">
+        <div class="header">
+            <h1>Max WheyTV</h1>
+            <p>Configure your streaming experience</p>
+        </div>
+
+        <!-- MOVIES & SERIES -->
+        <div class="section">
+            <h3><span class="icon">🎬</span> Movies & Series</h3>
+            <div class="toggle-row">
+                <span class="toggle-label">Enable Movies & Series</span>
+                <label class="toggle"><input type="checkbox" id="movies" checked><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <span class="toggle-label">Enable IPTV Live TV</span>
+                <label class="toggle"><input type="checkbox" id="iptv" checked><span class="slider"></span></label>
+            </div>
+        </div>
+
+        <!-- LANGUAGES -->
+        <div class="section" id="langSection">
+            <h3><span class="icon">🌍</span> Languages</h3>
+            <div class="checkbox-grid" id="langGrid">
+                <label class="checkbox-item selected" data-value="all"><div class="check"></div><span>All</span></label>
+                <label class="checkbox-item" data-value="en"><div class="check"></div><span>🇺🇸 English</span></label>
+                <label class="checkbox-item" data-value="hi"><div class="check"></div><span>🇮🇳 Hindi</span></label>
+                <label class="checkbox-item" data-value="es"><div class="check"></div><span>🇪🇸 Spanish</span></label>
+                <label class="checkbox-item" data-value="fr"><div class="check"></div><span>🇫🇷 French</span></label>
+                <label class="checkbox-item" data-value="de"><div class="check"></div><span>🇩🇪 German</span></label>
+                <label class="checkbox-item" data-value="pt"><div class="check"></div><span>🇧🇷 Portuguese</span></label>
+                <label class="checkbox-item" data-value="ru"><div class="check"></div><span>🇷🇺 Russian</span></label>
+                <label class="checkbox-item" data-value="ja"><div class="check"></div><span>🇯🇵 Japanese</span></label>
+                <label class="checkbox-item" data-value="ko"><div class="check"></div><span>🇰🇷 Korean</span></label>
+                <label class="checkbox-item" data-value="zh"><div class="check"></div><span>🇨🇳 Chinese</span></label>
+                <label class="checkbox-item" data-value="ar"><div class="check"></div><span>🇸🇦 Arabic</span></label>
+                <label class="checkbox-item" data-value="tr"><div class="check"></div><span>🇹🇷 Turkish</span></label>
+                <label class="checkbox-item" data-value="ta"><div class="check"></div><span>🇮🇳 Tamil</span></label>
+                <label class="checkbox-item" data-value="te"><div class="check"></div><span>🇮🇳 Telugu</span></label>
+            </div>
+        </div>
+
+        <!-- IPTV COUNTRIES -->
+        <div class="section" id="iptvSection">
+            <h3><span class="icon">📺</span> IPTV Countries</h3>
+            <div class="checkbox-grid" id="countryGrid">
+                <label class="checkbox-item selected" data-value="All"><div class="check"></div><span>🌍 All</span></label>
+                <label class="checkbox-item" data-value="India"><div class="check"></div><span>🇮🇳 India</span></label>
+                <label class="checkbox-item" data-value="United States"><div class="check"></div><span>🇺🇸 United States</span></label>
+                <label class="checkbox-item" data-value="United Kingdom"><div class="check"></div><span>🇬🇧 United Kingdom</span></label>
+                <label class="checkbox-item" data-value="Germany"><div class="check"></div><span>🇩🇪 Germany</span></label>
+                <label class="checkbox-item" data-value="France"><div class="check"></div><span>🇫🇷 France</span></label>
+                <label class="checkbox-item" data-value="Turkey"><div class="check"></div><span>🇹🇷 Turkey</span></label>
+                <label class="checkbox-item" data-value="Saudi Arabia"><div class="check"></div><span>🇸🇦 Saudi Arabia</span></label>
+                <label class="checkbox-item" data-value="UAE"><div class="check"></div><span>🇦🇪 UAE</span></label>
+                <label class="checkbox-item" data-value="South Korea"><div class="check"></div><span>🇰🇷 South Korea</span></label>
+                <label class="checkbox-item" data-value="Japan"><div class="check"></div><span>🇯🇵 Japan</span></label>
+                <label class="checkbox-item" data-value="Pakistan"><div class="check"></div><span>🇵🇰 Pakistan</span></label>
+                <label class="checkbox-item" data-value="Arab"><div class="check"></div><span>🌍 Arab</span></label>
+            </div>
+        </div>
+
+        <!-- IPTV CATEGORIES -->
+        <div class="section" id="catSection">
+            <h3><span class="icon">🏷️</span> IPTV Categories</h3>
+            <div class="checkbox-grid" id="catGrid">
+                <label class="checkbox-item selected" data-value="All"><div class="check"></div><span>All</span></label>
+                <label class="checkbox-item" data-value="Sports"><div class="check"></div><span>⚽ Sports</span></label>
+                <label class="checkbox-item" data-value="News"><div class="check"></div><span>📰 News</span></label>
+                <label class="checkbox-item" data-value="Movies"><div class="check"></div><span>🎬 Movies</span></label>
+                <label class="checkbox-item" data-value="Entertainment"><div class="check"></div><span>🎭 Entertainment</span></label>
+                <label class="checkbox-item" data-value="Music"><div class="check"></div><span>🎵 Music</span></label>
+                <label class="checkbox-item" data-value="Kids"><div class="check"></div><span>👶 Kids</span></label>
+                <label class="checkbox-item" data-value="Documentary"><div class="check"></div><span>📚 Documentary</span></label>
+                <label class="checkbox-item" data-value="Religion"><div class="check"></div><span>🕌 Religion</span></label>
+            </div>
+        </div>
+
+        <!-- RESOLUTION -->
+        <div class="section">
+            <h3><span class="icon">📐</span> Resolution</h3>
+            <div class="dropdown" id="resDropdown">
+                <div class="dropdown-trigger" onclick="toggleDropdown('resMenu')"><span id="resDisplay">All Resolutions</span><span class="material-symbols-rounded">expand_more</span></div>
+                <div class="dropdown-menu" id="resMenu">
+                    <div class="dropdown-item selected" data-value="all" onclick="selectDropdown('res', this)">All Resolutions</div>
+                    <div class="dropdown-item" data-value="4k" onclick="selectDropdown('res', this)">4K Only</div>
+                    <div class="dropdown-item" data-value="1080p" onclick="selectDropdown('res', this)">1080p and Above</div>
+                    <div class="dropdown-item" data-value="720p" onclick="selectDropdown('res', this)">720p and Above</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PLATFORM -->
+        <div class="section">
+            <h3><span class="icon">📱</span> Platform</h3>
+            <div class="dropdown" id="platDropdown">
+                <div class="dropdown-trigger" onclick="toggleDropdown('platMenu')"><span id="platDisplay">Auto Detect</span><span class="material-symbols-rounded">expand_more</span></div>
+                <div class="dropdown-menu" id="platMenu">
+                    <div class="dropdown-item selected" data-value="auto" onclick="selectDropdown('plat', this)">Auto Detect</div>
+                    <div class="dropdown-item" data-value="tv" onclick="selectDropdown('plat', this)">Android TV / Fire TV (Fast ~2s)</div>
+                    <div class="dropdown-item" data-value="mobile" onclick="selectDropdown('plat', this)">Mobile (Fast ~2s)</div>
+                    <div class="dropdown-item" data-value="desktop" onclick="selectDropdown('plat', this)">Desktop (Full Search ~5s)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INSTALL BUTTONS -->
+        <div style="margin-top: 24px;">
+            <button class="btn btn-primary" id="installApp"><span class="material-symbols-rounded">phone_iphone</span> Install to App</button>
+            <button class="btn btn-secondary" id="installWeb"><span class="material-symbols-rounded">language</span> Install to Web</button>
+        </div>
+        <div class="link-box">
+            <input type="text" id="manifestUrl" readonly>
+            <button onclick="copyLink()">📋</button>
+        </div>
     </div>
 
-    <header class="header">
-        <div class="container header-container">
-            <div class="brand">
-                <img src="/logo.png" alt="MovieBox" class="logo">
-                <h1 class="brand-name">MovieBox</h1>
-            </div>
-            <button class="theme-toggle" id="themeToggle" aria-label="Toggle Theme">
-                <span class="material-symbols-rounded">light_mode</span>
-            </button>
-        </div>
-    </header>
+    <div class="toast" id="toast">Copied!</div>
 
-    <main class="main" id="smooth-wrapper">
-        <div id="smooth-content">
-            <section class="hero">
-                <div class="container hero-container">
-                    <div class="hero-badge">
-                        <span class="material-symbols-rounded">bolt</span>
-                        <span>Universal Streaming</span>
-                    </div>
-                    <h2 class="hero-title">Stream From Every Corner</h2>
-                    <p class="hero-description">Multi-language, multi-country. Pick your languages, pick your countries, stream everything.</p>
-                </div>
-            </section>
-
-            <section class="config-section">
-                <div class="container">
-                    <form id="configForm" class="config-form">
-
-                        <!-- MINIMUM RESOLUTION -->
-                        <div class="form-group">
-                            <label>Minimum Resolution</label>
-                            <div class="custom-dropdown" data-id="resolution">
-                                <div class="dropdown-trigger">
-                                    <span class="dropdown-value">All Resolutions</span>
-                                    <span class="material-symbols-rounded dropdown-icon">expand_more</span>
-                                </div>
-                                <div class="dropdown-menu">
-                                    <div class="dropdown-item selected" data-value="all">All Resolutions</div>
-                                    <div class="dropdown-item" data-value="4k">4K Only</div>
-                                    <div class="dropdown-item" data-value="1080p">1080p and Above</div>
-                                    <div class="dropdown-item" data-value="720p">720p and Above</div>
-                                </div>
-                                <input type="hidden" id="resolution" value="all">
-                            </div>
-                        </div>
-
-                        <!-- MULTI-LANGUAGE SELECT -->
-                        <div class="form-group">
-                            <label>Languages <span style="font-weight:400;font-size:12px;opacity:0.6">— select multiple</span></label>
-                            <div class="multi-select" id="langSelect">
-                                <div class="multi-select-trigger" onclick="toggleMenu('langMenu')">
-                                    <span id="langDisplay">All Languages</span>
-                                    <span class="material-symbols-rounded">expand_more</span>
-                                </div>
-                                <div class="multi-select-menu" id="langMenu">
-                                    <div class="multi-option selected" data-value="all" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>All Languages</span>
-                                    </div>
-                                    <div class="section-label">Popular</div>
-                                    <div class="multi-option" data-value="en" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇺🇸 English</span>
-                                    </div>
-                                    <div class="multi-option" data-value="hi" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇮🇳 Hindi</span>
-                                    </div>
-                                    <div class="multi-option" data-value="es" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇪🇸 Spanish</span>
-                                    </div>
-                                    <div class="multi-option" data-value="fr" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇫🇷 French</span>
-                                    </div>
-                                    <div class="multi-option" data-value="de" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇩🇪 German</span>
-                                    </div>
-                                    <div class="multi-option" data-value="pt" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇧🇷 Portuguese</span>
-                                    </div>
-                                    <div class="multi-option" data-value="ru" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇷🇺 Russian</span>
-                                    </div>
-                                    <div class="multi-option" data-value="ja" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇯🇵 Japanese</span>
-                                    </div>
-                                    <div class="multi-option" data-value="ko" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇰🇷 Korean</span>
-                                    </div>
-                                    <div class="multi-option" data-value="zh" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇨🇳 Chinese</span>
-                                    </div>
-                                    <div class="section-label">More</div>
-                                    <div class="multi-option" data-value="ar" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇸🇦 Arabic</span>
-                                    </div>
-                                    <div class="multi-option" data-value="tr" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇹🇷 Turkish</span>
-                                    </div>
-                                    <div class="multi-option" data-value="it" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇮🇹 Italian</span>
-                                    </div>
-                                    <div class="multi-option" data-value="th" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇹🇭 Thai</span>
-                                    </div>
-                                    <div class="multi-option" data-value="pl" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇵🇱 Polish</span>
-                                    </div>
-                                    <div class="multi-option" data-value="ta" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇮🇳 Tamil</span>
-                                    </div>
-                                    <div class="multi-option" data-value="te" onclick="toggleOption(this, 'lang')">
-                                        <div class="check"></div><span>🇮🇳 Telugu</span>
-                                    </div>
-                                </div>
-                                <div class="selected-tags" id="langTags"></div>
-                            </div>
-                        </div>
-
-                        <!-- MULTI-COUNTRY SELECT -->
-                        <div class="form-group">
-                            <label>Countries <span style="font-weight:400;font-size:12px;opacity:0.6">— for catalog discovery</span></label>
-                            <div class="multi-select" id="countrySelect">
-                                <div class="multi-select-trigger" onclick="toggleMenu('countryMenu')">
-                                    <span id="countryDisplay">All Countries</span>
-                                    <span class="material-symbols-rounded">expand_more</span>
-                                </div>
-                                <div class="multi-select-menu" id="countryMenu">
-                                    <div class="multi-option selected" data-value="All" onclick="toggleOption(this, 'country')">
-                                        <div class="check"></div><span>🌍 All Countries</span>
-                                    </div>
-                                    <div class="section-label">Americas</div>
-                                    <div class="multi-option" data-value="United States" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇺🇸 United States</span></div>
-                                    <div class="multi-option" data-value="Mexico" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇲🇽 Mexico</span></div>
-                                    <div class="section-label">Europe</div>
-                                    <div class="multi-option" data-value="United Kingdom" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇬🇧 United Kingdom</span></div>
-                                    <div class="multi-option" data-value="France" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇫🇷 France</span></div>
-                                    <div class="multi-option" data-value="Germany" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇩🇪 Germany</span></div>
-                                    <div class="multi-option" data-value="Italy" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇮🇹 Italy</span></div>
-                                    <div class="multi-option" data-value="Spain" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇪🇸 Spain</span></div>
-                                    <div class="multi-option" data-value="Russia" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇷🇺 Russia</span></div>
-                                    <div class="section-label">Asia</div>
-                                    <div class="multi-option" data-value="India" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇮🇳 India</span></div>
-                                    <div class="multi-option" data-value="Japan" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇯🇵 Japan</span></div>
-                                    <div class="multi-option" data-value="Korea" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇰🇷 Korea</span></div>
-                                    <div class="multi-option" data-value="China" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇨🇳 China</span></div>
-                                    <div class="multi-option" data-value="Thailand" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇹🇭 Thailand</span></div>
-                                    <div class="multi-option" data-value="Indonesia" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇮🇩 Indonesia</span></div>
-                                    <div class="multi-option" data-value="Philippines" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇵🇭 Philippines</span></div>
-                                    <div class="multi-option" data-value="Pakistan" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇵🇰 Pakistan</span></div>
-                                    <div class="multi-option" data-value="Bangladesh" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇧🇩 Bangladesh</span></div>
-                                    <div class="multi-option" data-value="Malaysia" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇲🇾 Malaysia</span></div>
-                                    <div class="section-label">Middle East & Africa</div>
-                                    <div class="multi-option" data-value="Egypt" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇪🇬 Egypt</span></div>
-                                    <div class="multi-option" data-value="Saudi Arabia" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇸🇦 Saudi Arabia</span></div>
-                                    <div class="multi-option" data-value="Nigeria" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇳🇬 Nigeria</span></div>
-                                    <div class="multi-option" data-value="South Africa" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇿🇦 South Africa</span></div>
-                                    <div class="multi-option" data-value="Kenya" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇰🇪 Kenya</span></div>
-                                    <div class="multi-option" data-value="Morocco" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇲🇦 Morocco</span></div>
-                                    <div class="multi-option" data-value="Iraq" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇮🇶 Iraq</span></div>
-                                    <div class="multi-option" data-value="Lebanon" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇱🇧 Lebanon</span></div>
-                                    <div class="multi-option" data-value="Syria" onclick="toggleOption(this, 'country')"><div class="check"></div><span>🇸🇾 Syria</span></div>
-                                </div>
-                                <div class="selected-tags" id="countryTags"></div>
-                            </div>
-                        </div>
-
-                        <!-- GENRE -->
-                        <div class="form-group">
-                            <label>Genre</label>
-                            <div class="custom-dropdown" data-id="genre">
-                                <div class="dropdown-trigger">
-                                    <span class="dropdown-value">All Genres</span>
-                                    <span class="material-symbols-rounded dropdown-icon">expand_more</span>
-                                </div>
-                                <div class="dropdown-menu">
-                                    <div class="dropdown-item selected" data-value="All">All Genres</div>
-                                    <div class="dropdown-item" data-value="Action">Action</div>
-                                    <div class="dropdown-item" data-value="Adventure">Adventure</div>
-                                    <div class="dropdown-item" data-value="Animation">Animation</div>
-                                    <div class="dropdown-item" data-value="Comedy">Comedy</div>
-                                    <div class="dropdown-item" data-value="Crime">Crime</div>
-                                    <div class="dropdown-item" data-value="Documentary">Documentary</div>
-                                    <div class="dropdown-item" data-value="Drama">Drama</div>
-                                    <div class="dropdown-item" data-value="Family">Family</div>
-                                    <div class="dropdown-item" data-value="Fantasy">Fantasy</div>
-                                    <div class="dropdown-item" data-value="History">History</div>
-                                    <div class="dropdown-item" data-value="Horror">Horror</div>
-                                    <div class="dropdown-item" data-value="Mystery">Mystery</div>
-                                    <div class="dropdown-item" data-value="Romance">Romance</div>
-                                    <div class="dropdown-item" data-value="Sci-Fi">Sci-Fi</div>
-                                    <div class="dropdown-item" data-value="Thriller">Thriller</div>
-                                    <div class="dropdown-item" data-value="War">War</div>
-                                </div>
-                                <input type="hidden" id="genre" value="All">
-                            </div>
-                        </div>
-
-                        <!-- LAYOUT -->
-                        <div class="form-group">
-                            <label>Layout Style</label>
-                            <div class="custom-dropdown" data-id="layout">
-                                <div class="dropdown-trigger">
-                                    <span class="dropdown-value">Cinematic (Clean)</span>
-                                    <span class="material-symbols-rounded dropdown-icon">expand_more</span>
-                                </div>
-                                <div class="dropdown-menu">
-                                    <div class="dropdown-item selected" data-value="cinematic">Cinematic (Clean)</div>
-                                    <div class="dropdown-item" data-value="torrentio">Compact (Torrentio Style)</div>
-                                    <div class="dropdown-item" data-value="badges">Badges (Technical)</div>
-                                </div>
-                                <input type="hidden" id="layout" value="cinematic">
-                            </div>
-                        </div>
-
-                        <!-- PLATFORM -->
-                        <div class="form-group">
-                            <label>Platform</label>
-                            <div class="custom-dropdown" data-id="platform">
-                                <div class="dropdown-trigger">
-                                    <span class="dropdown-value">Auto Detect</span>
-                                    <span class="material-symbols-rounded dropdown-icon">expand_more</span>
-                                </div>
-                                <div class="dropdown-menu">
-                                    <div class="dropdown-item selected" data-value="auto">Auto Detect</div>
-                                    <div class="dropdown-item" data-value="tv">Android TV / Fire TV (Fast ~2s)</div>
-                                    <div class="dropdown-item" data-value="mobile">Mobile (Fast ~2s)</div>
-                                    <div class="dropdown-item" data-value="desktop">Desktop (Full Search ~5s)</div>
-                                </div>
-                                <input type="hidden" id="platform" value="auto">
-                            </div>
-                        </div>
-
-                        <div class="form-actions">
-                            <button type="button" id="installAppBtn" class="btn btn-primary">
-                                <span class="material-symbols-rounded">phone_iphone</span>
-                                Install to App
-                            </button>
-                            <button type="button" id="installWebBtn" class="btn btn-secondary">
-                                <span class="material-symbols-rounded">language</span>
-                                Install to Web
-                            </button>
-                        </div>
-                        
-                        <div class="raw-link-container">
-                            <input type="text" id="rawLinkInput" class="raw-link-input" readonly>
-                            <button type="button" id="copyLinkBtn" class="btn-icon" aria-label="Copy Link">
-                                <span class="material-symbols-rounded">content_copy</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </section>
-        </div>
-    </main>
-
-    <div id="toast" class="toast">Link copied to clipboard</div>
-
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
-    <script defer src="./js/app.js"></script>
     <script>
-        // Multi-select logic
-        const selectedLangs = new Set(['all']);
-        const selectedCountries = new Set(['All']);
-
-        function toggleMenu(id) {
-            const menu = document.getElementById(id);
-            document.querySelectorAll('.multi-select-menu').forEach(m => {
-                if (m.id !== id) m.classList.remove('open');
-            });
-            menu.classList.toggle('open');
-        }
-
-        function toggleOption(el, type) {
-            const value = el.dataset.value;
-            const set = type === 'lang' ? selectedLangs : selectedCountries;
-
-            if (value === 'all' || value === 'All') {
-                set.clear();
-                set.add(value);
-                el.parentElement.querySelectorAll('.multi-option').forEach(o => o.classList.remove('selected'));
-                el.classList.add('selected');
-            } else {
-                set.delete('all');
-                set.delete('All');
-                el.parentElement.querySelector('[data-value="all"]')?.classList.remove('selected');
-                el.parentElement.querySelector('[data-value="All"]')?.classList.remove('selected');
-
-                if (set.has(value)) {
-                    set.delete(value);
-                    el.classList.remove('selected');
-                } else {
-                    set.add(value);
-                    el.classList.add('selected');
-                }
-
-                if (set.size === 0) {
-                    set.add(type === 'lang' ? 'all' : 'All');
-                    el.parentElement.querySelector(`[data-value="${type === 'lang' ? 'all' : 'All'}"]`)?.classList.add('selected');
-                }
-            }
-
-            updateTags(type);
-            updateLink();
-        }
-
-        function updateTags(type) {
-            const set = type === 'lang' ? selectedLangs : selectedCountries;
-            const container = document.getElementById(type === 'lang' ? 'langTags' : 'countryTags');
-            const display = document.getElementById(type === 'lang' ? 'langDisplay' : 'countryDisplay');
-
-            container.innerHTML = '';
-            const names = { en:'English', hi:'Hindi', es:'Spanish', fr:'French', de:'German', pt:'Portuguese', ru:'Russian', ja:'Japanese', ko:'Korean', zh:'Chinese', ar:'Arabic', tr:'Turkish', it:'Italian', th:'Thai', pl:'Polish', ta:'Tamil', te:'Telugu' };
-
-            if (set.has('all') || set.has('All')) {
-                display.textContent = type === 'lang' ? 'All Languages' : 'All Countries';
-            } else {
-                display.textContent = `${set.size} selected`;
-                set.forEach(v => {
-                    const tag = document.createElement('span');
-                    tag.className = 'tag';
-                    tag.innerHTML = `${names[v] || v} <span class="remove" onclick="event.stopPropagation(); removeTag('${v}','${type}')">✕</span>`;
-                    container.appendChild(tag);
-                });
-            }
-        }
-
-        function removeTag(value, type) {
-            const set = type === 'lang' ? selectedLangs : selectedCountries;
-            set.delete(value);
-            const menu = document.getElementById(type === 'lang' ? 'langMenu' : 'countryMenu');
-            menu.querySelector(`[data-value="${value}"]`)?.classList.remove('selected');
-
-            if (set.size === 0) set.add(type === 'lang' ? 'all' : 'All');
-            if (set.has('all') || set.has('All')) {
-                menu.querySelector('[data-value="all"]')?.classList.add('selected');
-                menu.querySelector('[data-value="All"]')?.classList.add('selected');
-            }
-            updateTags(type);
-            updateLink();
-        }
-
-        // Close menus on outside click
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.multi-select')) {
-                document.querySelectorAll('.multi-select-menu').forEach(m => m.classList.remove('open'));
-            }
-        });
-
-        // Override updateLink to include multi-select
-        const origUpdateLink = window.updateLink;
-        window.updateLink = function() {
-            const config = {
-                resolution: document.getElementById('resolution').value,
-                languages: [...selectedLangs],
-                countries: [...selectedCountries],
-                genre: document.getElementById('genre').value,
-                layout: document.getElementById('layout').value,
-                platform: document.getElementById('platform').value
-            };
-            const jsonStr = JSON.stringify(config);
-            const base64Config = btoa(jsonStr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-            const baseUrl = window.location.origin;
-            const manifestUrl = `${baseUrl}/${base64Config}/manifest.json`;
-            document.getElementById('rawLinkInput').value = manifestUrl;
-            const stremioUrl = manifestUrl.replace(/^https?:\/\//, 'stremio://');
-            document.getElementById('installAppBtn').onclick = () => window.location.href = stremioUrl;
-            document.getElementById('installWebBtn').onclick = () => window.open(`https://web.stremio.com/#/addons?addon=${encodeURIComponent(manifestUrl)}`, '_blank');
+        // State
+        const state = {
+            movies: true, iptv: true,
+            languages: ['all'],
+            iptv_countries: ['All'],
+            iptv_categories: ['All'],
+            resolution: 'all',
+            platform: 'auto',
         };
 
-        // Hook into existing dropdown logic
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => { if (typeof updateLink === 'function') window.updateLink(); }, 500);
-        });
+        // Checkbox grid logic
+        function setupGrid(gridId, stateKey) {
+            const grid = document.getElementById(gridId);
+            grid.querySelectorAll('.checkbox-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const value = item.dataset.value;
+                    if (value === 'all' || value === 'All') {
+                        state[stateKey] = [value];
+                        grid.querySelectorAll('.checkbox-item').forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+                    } else {
+                        // Remove 'all' if specific selected
+                        const allItem = grid.querySelector('[data-value="all"], [data-value="All"]');
+                        if (allItem) { allItem.classList.remove('selected'); state[stateKey] = state[stateKey].filter(v => v !== 'all' && v !== 'All'); }
+                        if (item.classList.contains('selected')) {
+                            item.classList.remove('selected');
+                            state[stateKey] = state[stateKey].filter(v => v !== value);
+                            if (state[stateKey].length === 0) { state[stateKey] = ['all']; if (allItem) allItem.classList.add('selected'); }
+                        } else {
+                            item.classList.add('selected');
+                            state[stateKey].push(value);
+                        }
+                    }
+                    updateLink();
+                });
+            });
+        }
+
+        setupGrid('langGrid', 'languages');
+        setupGrid('countryGrid', 'iptv_countries');
+        setupGrid('catGrid', 'iptv_categories');
+
+        // Toggles
+        document.getElementById('movies').addEventListener('change', e => { state.movies = e.target.checked; updateLink(); });
+        document.getElementById('iptv').addEventListener('change', e => { state.iptv = e.target.checked; updateLink(); });
+
+        // Dropdown logic
+        function toggleDropdown(id) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => { if (m.id !== id) m.classList.remove('open'); });
+            document.getElementById(id).classList.toggle('open');
+        }
+
+        function selectDropdown(type, el) {
+            const menu = el.parentElement;
+            menu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+            if (type === 'res') { state.resolution = el.dataset.value; document.getElementById('resDisplay').textContent = el.textContent; }
+            if (type === 'plat') { state.platform = el.dataset.value; document.getElementById('platDisplay').textContent = el.textContent; }
+            menu.classList.remove('open');
+            updateLink();
+        }
+
+        document.addEventListener('click', e => { if (!e.target.closest('.dropdown')) document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open')); });
+
+        // Generate manifest URL
+        function updateLink() {
+            const config = { ...state };
+            const json = JSON.stringify(config);
+            const b64 = btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            const base = window.location.origin;
+            const url = `${base}/${b64}/manifest.json`;
+            document.getElementById('manifestUrl').value = url;
+            document.getElementById('installApp').onclick = () => window.location.href = url.replace(/^https?:\/\//, 'stremio://');
+            document.getElementById('installWeb').onclick = () => window.open(`https://web.stremio.com/#/addons?addon=${encodeURIComponent(url)}`, '_blank');
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(document.getElementById('manifestUrl').value);
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 2000);
+        }
+
+        updateLink();
     </script>
 </body>
 </html>
