@@ -36,6 +36,44 @@ async def meta_endpoint(request: Request, type: str, id: str):
                 "id": id, "type": type, "name": id.replace("mwh_iptv_", "").replace("mwh_fifa_", "FIFA "),
             }})
 
+        # Anime with MAL ID
+        if id.startswith("mal_"):
+            mal_id = id.replace("mal_", "")
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10), follow_redirects=True) as client:
+                try:
+                    r = await client.get(f"https://api.jikan.moe/v4/anime/{mal_id}/full", timeout=10)
+                    if r.status_code == 200:
+                        anime = r.json().get("data", {})
+                        title = anime.get("title_english") or anime.get("title", "")
+                        images = anime.get("images", {}).get("jpg", {})
+                        poster = images.get("large_image_url")
+                        episodes = anime.get("episodes") or 0
+                        synopsis = anime.get("synopsis", "")
+                        score = anime.get("score")
+                        year = anime.get("year") or (anime.get("aired", {}).get("from", "") or "")[:4]
+                        genres = [g["name"] for g in anime.get("genres", [])]
+                        videos = []
+                        for i in range(min(episodes, 200)):
+                            videos.append({
+                                "id": f"mal_{mal_id}:{i+1}",
+                                "title": f"Episode {i+1}",
+                                "season": 1,
+                                "episode": i + 1,
+                            })
+                        return JSONResponse({"meta": {
+                            "id": id, "type": "series", "name": title,
+                            "poster": poster,
+                            "releaseInfo": str(year) if year else "",
+                            "imdbRating": str(score) if score else None,
+                            "genres": genres,
+                            "description": synopsis[:500] if synopsis else "",
+                            "videos": videos,
+                            "posterShape": "poster",
+                        }})
+                except Exception as e:
+                    print(f"[Meta] Jikan error: {e}")
+            return JSONResponse({"meta": {"id": id, "type": "series", "name": "Unknown"}})
+
         # Movie/Series with IMDB ID
         if id.startswith("tt"):
             async with httpx.AsyncClient(timeout=httpx.Timeout(10), follow_redirects=True) as client:
@@ -154,6 +192,56 @@ async def handle_stream(request: Request, type: str, id: str, config_str: str):
     # IPTV streams
     if id.startswith("mwh_iptv_") or id.startswith("mwh_fifa_"):
         return await get_iptv_stream(id)
+
+    # Anime streams via MovieBox (search by title)
+    if id.startswith("mal_"):
+        mal_id = id.split(":")[0].replace("mal_", "")
+        season = 1
+        episode = 1
+        parts = id.split(":")
+        if len(parts) > 1:
+            episode = int(parts[1])
+        # Get anime title from Jikan
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10), follow_redirects=True) as client:
+                r = await client.get(f"https://api.jikan.moe/v4/anime/{mal_id}", timeout=10)
+                if r.status_code == 200:
+                    anime = r.json().get("data", {})
+                    title = anime.get("title_english") or anime.get("title", "")
+                    if title:
+                        # Search MovieBox for the anime
+                        from streaming.provider import find_fast_matches, extract_streams
+                        matches = await find_fast_matches(title, "", is_movie=False)
+                        if matches:
+                            stream_results = await extract_streams(matches, False, season, episode)
+                            streams = []
+                            seen = set()
+                            for sd in stream_results:
+                                dl = sd["download"]
+                                url = str(dl.url)
+                                base = url.split("?")[0]
+                                if base in seen:
+                                    continue
+                                seen.add(base)
+                                res = getattr(dl, "resolution", 0)
+                                res_text = f"{res}p" if res else "?"
+                                audio = sd.get("audio_lang", "")
+                                streams.append({
+                                    "name": "Max WheyTV",
+                                    "title": f"🎬 {res_text} | 🔊 {audio or 'Original'}",
+                                    "url": url,
+                                    "behaviorHints": {
+                                        "notWebReady": True,
+                                        "proxyHeaders": {"request": {
+                                            "Referer": "https://fmoviesunblocked.net/",
+                                            "User-Agent": "Mozilla/5.0",
+                                        }},
+                                    },
+                                })
+                            return JSONResponse({"streams": streams})
+        except Exception as e:
+            print(f"[Stream] Anime error: {e}")
+        return JSONResponse({"streams": []})
 
     # Movie/Series streams via MovieBox
     if id.startswith("tt"):

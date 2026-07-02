@@ -238,6 +238,16 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
             })
         return JSONResponse({"metas": metas})
 
+    # Anime catalogs (Jikan)
+    if catalog_id in ("mwh_anime_top", "mwh_anime_seasonal"):
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10), follow_redirects=True) as client:
+            if catalog_id == "mwh_anime_top":
+                anime_list = await fetch_jikan_top(client)
+            else:
+                anime_list = await fetch_jikan_seasonal(client)
+            metas = [anime_to_meta(a) for a in anime_list]
+            return JSONResponse({"metas": metas})
+
     # MovieBox catalogs
     section_key = catalog_id.replace("mwh_", "")
     if section_key not in MOVIEBOX_SECTIONS:
@@ -273,3 +283,72 @@ async def refresh_catalog():
         _catalog_cache = new_cache
         _cache_time = time.time()
         print(f"[Catalog] Refreshed: {total} items across {len(MOVIEBOX_SECTIONS)} sections")
+
+
+# ─── JIKAN ANIME CATALOG ─────────────────────────────────────
+
+async def fetch_jikan_top(client, page=1, limit=25):
+    """Fetch top anime from Jikan API."""
+    try:
+        r = await client.get(f"https://api.jikan.moe/v4/top/anime?page={page}&limit={limit}", timeout=10)
+        if r.status_code == 200:
+            return r.json().get("data", [])
+    except:
+        pass
+    return []
+
+
+async def fetch_jikan_seasonal(client, page=1, limit=25):
+    """Fetch seasonal anime from Jikan API."""
+    try:
+        r = await client.get(f"https://api.jikan.moe/v4/seasons/now?page={page}&limit={limit}", timeout=10)
+        if r.status_code == 200:
+            return r.json().get("data", [])
+    except:
+        pass
+    return []
+
+
+async def fetch_jikan_search(client, query, limit=10):
+    """Search anime on Jikan."""
+    try:
+        r = await client.get(f"https://api.jikan.moe/v4/anime?q={query}&limit={limit}", timeout=10)
+        if r.status_code == 200:
+            return r.json().get("data", [])
+    except:
+        pass
+    return []
+
+
+def anime_to_meta(anime):
+    """Convert Jikan anime to Stremio meta format."""
+    mal_id = anime.get("mal_id")
+    title = anime.get("title", "")
+    title_english = anime.get("title_english", "")
+    images = anime.get("images", {}).get("jpg", {})
+    poster = images.get("large_image_url") or images.get("image_url")
+    score = anime.get("score")
+    episodes = anime.get("episodes")
+    synopsis = anime.get("synopsis", "")
+    year = anime.get("year") or (anime.get("aired", {}).get("from", "") or "")[:4]
+    genres = [g["name"] for g in anime.get("genres", [])]
+
+    return {
+        "id": f"mal_{mal_id}",
+        "type": "series",
+        "name": title_english or title,
+        "poster": poster,
+        "releaseInfo": str(year) if year else "",
+        "imdbRating": str(score) if score else None,
+        "genres": genres,
+        "description": synopsis[:300] if synopsis else "",
+        "videos": [
+            {
+                "id": f"mal_{mal_id}:{i+1}",
+                "title": f"Episode {i+1}",
+                "season": 1,
+                "episode": i + 1,
+            }
+            for i in range(min(episodes or 0, 100))
+        ],
+    }

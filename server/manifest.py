@@ -43,6 +43,8 @@ def get_manifest(config: dict = None) -> Manifest:
             {"id": "mwh_top_series",   "type": "series", "name": "📺 Top Series"},
             {"id": "mwh_indian_drama", "type": "series", "name": "🇮🇳 Indian Drama"},
             {"id": "mwh_anime",        "type": "series", "name": "🎌 Anime"},
+            {"id": "mwh_anime_top",      "type": "series", "name": "🏆 Top Anime"},
+            {"id": "mwh_anime_seasonal", "type": "series", "name": "🌸 Seasonal Anime"},
         ])
 
     # IPTV catalogs
@@ -70,7 +72,7 @@ def get_manifest(config: dict = None) -> Manifest:
         ],
         types=["movie", "series", "tv"],
         catalogs=catalogs,
-        idPrefixes=["tt", "mwh_"],
+        idPrefixes=["tt", "mwh_", "mal_"],
         background="https://raw.githubusercontent.com/Stremio/stremio-art/main/originals/Ahlen%20Ken%20A.%20Batalon.png",
         behaviorHints={"configurable": True, "configurationRequired": False},
     )
