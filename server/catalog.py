@@ -215,7 +215,7 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
             all_streams = filtered
 
         metas = []
-        for i, s in enumerate(all_streams[:500]):
+        for i, s in enumerate(all_streams[:100]):
             metas.append({
                 "id": f"mwh_iptv_{i}",
                 "type": "tv",
