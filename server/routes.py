@@ -452,8 +452,8 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
             desc = f"🎬 {res_text}"
             if size_text:
                 desc += f" • 💾 {size_text}"
-            if audio:
-                desc += f" • {audio}"
+            if audio or True:
+                desc += f" • {audio or "Original"}"
 
             streams.append({
                 "name": "Max WheyTV",
