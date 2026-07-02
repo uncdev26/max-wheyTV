@@ -227,16 +227,59 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
 
         # ── TMDB Movie Catalogs ──────────────────────────────
         if catalog_id == "mwh_popular":
-            metas = await tmdb_discover(client, "movie", {"sort_by": "popularity.desc"})
-            return JSONResponse({"metas": metas[:100]})
+            # Fetch from multiple languages to ensure diversity
+            all_metas = []
+            for lang in ["en", "hi", "es", "fr", "de", "pt", "ru", "ja", "ko", "zh", "ar", "tr", "ta", "te"]:
+                metas = await tmdb_discover(client, "movie", {
+                    "with_original_language": lang,
+                    "sort_by": "popularity.desc",
+                    "vote_count.gte": "10",
+                })
+                all_metas.extend(metas[:10])
+            # Sort by rating and deduplicate
+            seen = set()
+            unique = []
+            for m in all_metas:
+                if m["id"] not in seen:
+                    seen.add(m["id"])
+                    unique.append(m)
+            return JSONResponse({"metas": unique[:100]})
 
         if catalog_id == "mwh_trending":
-            metas = await tmdb_trending(client, "movie", "week")
-            return JSONResponse({"metas": metas[:100]})
+            # Fetch trending from multiple languages
+            all_metas = []
+            for lang in ["en", "hi", "es", "fr", "de", "ja", "ko", "zh", "ar", "tr"]:
+                metas = await tmdb_discover(client, "movie", {
+                    "with_original_language": lang,
+                    "sort_by": "popularity.desc",
+                    "vote_count.gte": "5",
+                })
+                all_metas.extend(metas[:8])
+            seen = set()
+            unique = []
+            for m in all_metas:
+                if m["id"] not in seen:
+                    seen.add(m["id"])
+                    unique.append(m)
+            return JSONResponse({"metas": unique[:100]})
 
         if catalog_id == "mwh_top_rated":
-            metas = await tmdb_discover(client, "movie", {"sort_by": "vote_average.desc", "vote_count.gte": "500"})
-            return JSONResponse({"metas": metas[:100]})
+            # Fetch top rated from multiple languages
+            all_metas = []
+            for lang in ["en", "hi", "es", "fr", "de", "ja", "ko", "zh", "ar", "tr"]:
+                metas = await tmdb_discover(client, "movie", {
+                    "with_original_language": lang,
+                    "sort_by": "vote_average.desc",
+                    "vote_count.gte": "50",
+                })
+                all_metas.extend(metas[:8])
+            seen = set()
+            unique = []
+            for m in all_metas:
+                if m["id"] not in seen:
+                    seen.add(m["id"])
+                    unique.append(m)
+            return JSONResponse({"metas": unique[:100]})
 
         if catalog_id == "mwh_new":
             metas = await tmdb_discover(client, "movie", {"sort_by": "release_date.desc", "release_date.lte": "2026-12-31"})
