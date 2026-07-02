@@ -460,20 +460,22 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
             audio = sd.get("audio_lang", "")
             subs = sd.get("subtitle_langs", [])
 
+            # Resolution filter: remove everything below 1080p
+            if resolution and resolution < 1080:
+                continue
+
             if not all_langs and not lang_matches(audio):
                 continue
 
             res_text = f"{resolution}p" if resolution else "?"
             size_text = f"{size / (1024*1024):.0f} MB" if size else ""
 
-            # Stream title: quality + size + audio/subtitle info
+            # Stream title: quality + size + audio only
             desc = f"🎬 {res_text}"
             if size_text:
                 desc += f" • 💾 {size_text}"
             if audio:
                 desc += f" • 🔊 {audio}"
-            elif False:  # Subtitles hidden
-                desc += f" • 💬 Subs: {', '.join(subs[:4])}"
             else:
                 desc += f" • 🔊 Original"
 
