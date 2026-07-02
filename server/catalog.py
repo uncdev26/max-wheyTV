@@ -254,8 +254,9 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
                 "id": f"mwh_iptv_{i}_{country_key}",
                 "type": "tv",
                 "name": s.get("name", "Unknown"),
-                "poster": s.get("logo") or s.get("tvg_logo") or "https://img.icons8.com/color/96/tv.png",
-                "background": "https://img.icons8.com/color/96/tv.png",
+                "poster": s.get("poster") or s.get("logo") or "https://img.icons8.com/color/200/tv.png",
+                "background": s.get("poster") or s.get("logo") or "https://img.icons8.com/color/200/tv.png",
+                "genres": [s.get("country", "General")],
             })
         return JSONResponse({"metas": metas})
 
@@ -268,8 +269,9 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
                 "id": f"mwh_fifa_{i}",
                 "type": "tv",
                 "name": s.get("name", "Unknown"),
-                "poster": "https://img.icons8.com/color/96/soccer-ball.png",
-                "background": "https://img.icons8.com/color/96/soccer-ball.png",
+                "poster": s.get("poster") or "https://img.icons8.com/color/200/soccer-ball.png",
+                "background": s.get("poster") or "https://img.icons8.com/color/200/soccer-ball.png",
+                "genres": ["Sports", "Football"],
             })
         return JSONResponse({"metas": metas})
 

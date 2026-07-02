@@ -72,8 +72,7 @@ def get_iptv_meta(id: str):
                 "id": id, "type": "tv", "name": name,
                 "poster": logo,
                 "background": logo,
-                "description": f"{quality} | {latency}ms latency",
-                "posterShape": "square",
+                "description": f"Watch {name} ({quality}) — {latency}ms latency",
             }})
     except Exception as e:
         print(f"[Meta] IPTV error: {e}")
