@@ -448,13 +448,10 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
             res_text = f"{resolution}p" if resolution else "?"
             size_text = f"{size / (1024*1024):.0f} MB" if size else ""
 
+            # Clean stream title: quality + audio language only
             desc = f"🎬 {res_text}"
-            if size_text:
-                desc += f" • 💾 {size_text}"
             if audio:
-                desc += f"\n🔊 {audio}"
-            if subs:
-                desc += f"\n💬 {', '.join(subs[:3])}"
+                desc += f" • {audio}"
 
             streams.append({
                 "name": "Max WheyTV",
