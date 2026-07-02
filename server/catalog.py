@@ -79,13 +79,18 @@ async def tmdb_discover(client, content_type="movie", params=None):
                 # Use IMDB ID if available, else TMDB ID
                 meta_id = imdb_id if imdb_id else f"tmdb_{tmdb_id}"
 
+                # Add language tag to releaseInfo
+                lang_code = item.get("original_language", "")
+                lang_name = LANG_TAG.get(lang_code, lang_code.upper())
+                release = f"{year} • {lang_name}" if year else lang_name
+
                 metas.append({
                     "id": meta_id,
                     "type": content_type,
                     "name": title,
                     "poster": f"https://image.tmdb.org/t/p/w500{poster}" if poster else None,
                     "background": f"https://image.tmdb.org/t/p/original{backdrop}" if backdrop else None,
-                    "releaseInfo": year,
+                    "releaseInfo": release,
                     "imdbRating": str(round(rating, 1)) if rating else None,
                     "description": overview[:300] if overview else "",
                 })
@@ -117,13 +122,17 @@ async def tmdb_trending(client, content_type="movie", time_window="week"):
 
                 meta_id = imdb_id if imdb_id else f"tmdb_{tmdb_id}"
 
+                lang_code = item.get("original_language", "")
+                lang_name = LANG_TAG.get(lang_code, lang_code.upper())
+                release = f"{year} • {lang_name}" if year else lang_name
+
                 metas.append({
                     "id": meta_id,
                     "type": content_type,
                     "name": title,
                     "poster": f"https://image.tmdb.org/t/p/w500{poster}" if poster else None,
                     "background": f"https://image.tmdb.org/t/p/original{backdrop}" if backdrop else None,
-                    "releaseInfo": year,
+                    "releaseInfo": release,
                     "imdbRating": str(round(rating, 1)) if rating else None,
                 })
             return metas
