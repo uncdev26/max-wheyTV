@@ -1,3 +1,4 @@
+import asyncio
 """Max WheyTV — Meta & Stream endpoints."""
 import json
 import os
@@ -405,16 +406,33 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
         "ja": "japanese", "ko": "korean", "zh": "chinese", "ar": "arabic",
         "tr": "turkish", "th": "thai", "pl": "polish", "ta": "tamil", "te": "telugu",
     }
-    pref_lang_names = [LANG_MAP.get(l, l) for l in pref_langs]
 
     try:
         from streaming.provider import find_fast_matches, extract_streams
 
-        matches = await find_fast_matches(title, "", is_movie=(type == "movie"))
-        if not matches:
+        pref_lang_names = [LANG_MAP.get(l, l).capitalize() for l in pref_langs if l in LANG_MAP]
+
+        # Search for the original title
+        all_matches = await find_fast_matches(title, "", is_movie=(type == "movie"))
+        
+        # Also search for language-specific versions (e.g., "Project Hail Mary Hindi")
+        if not all_langs and pref_langs:
+            lang_searches = []
+            for lang_code in pref_langs:
+                if lang_code in LANG_MAP:
+                    lang_name = LANG_MAP[lang_code].capitalize()
+                    lang_searches.append(find_fast_matches(f"{title} {lang_name}", "", is_movie=(type == "movie")))
+            
+            if lang_searches:
+                lang_results = await asyncio.gather(*lang_searches, return_exceptions=True)
+                for result in lang_results:
+                    if not isinstance(result, Exception) and result:
+                        all_matches.extend(result)
+        
+        if not all_matches:
             return JSONResponse({"streams": []})
 
-        stream_results = await extract_streams(matches, type == "movie", season, episode)
+        stream_results = await extract_streams(all_matches, type == "movie", season, episode)
 
         def lang_matches(audio_lang):
             if not audio_lang:
