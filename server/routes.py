@@ -472,7 +472,7 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
                 desc += f" • 💾 {size_text}"
             if audio:
                 desc += f" • 🔊 {audio}"
-            elif subs:
+            elif False:  # Subtitles hidden
                 desc += f" • 💬 Subs: {', '.join(subs[:4])}"
             else:
                 desc += f" • 🔊 Original"

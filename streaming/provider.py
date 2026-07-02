@@ -152,12 +152,30 @@ def extract_match_language_info(match: dict) -> dict:
     subtitle_langs = []
     seen_subs = set()
 
-    title = getattr(item, "title", "")
-    lang_from_title = _extract_title_language(title)
-    if lang_from_title:
-        audio_lang = lang_from_title
+    # 1. Try to get audio language from dubs field (most reliable)
+    dubs = getattr(item, "dubs", None)
+    if dubs:
+        # Collect all available dub languages
+        dub_names = []
+        for dub in dubs:
+            lan_name = getattr(dub, "lanName", None)
+            if lan_name and lan_name not in dub_names:
+                dub_names.append(lan_name)
+        
+        if len(dub_names) == 1:
+            audio_lang = dub_names[0]
+        elif len(dub_names) > 1:
+            # Multiple dubs available - show all
+            audio_lang = ", ".join(dub_names)
+    
+    # 2. Fallback: extract from title brackets
+    if not audio_lang:
+        title = getattr(item, "title", "")
+        lang_from_title = _extract_title_language(title)
+        if lang_from_title:
+            audio_lang = lang_from_title
 
-    # Extract subtitle languages
+    # 3. Extract subtitle languages
     if version in ("v2", "v1", "v3"):
         subs = getattr(item, "subtitles", None)
         if subs:
