@@ -22,8 +22,6 @@ def get_manifest(config: dict = None) -> Manifest:
     anime_enabled = config.get("anime", True)
     iptv_enabled = config.get("iptv", True)
     fifa_enabled = config.get("fifa", True)
-    iptv_countries = config.get("iptv_countries", [])
-    iptv_categories = config.get("iptv_categories", [])
 
     catalogs = []
 
@@ -38,30 +36,32 @@ def get_manifest(config: dict = None) -> Manifest:
             {"id": "mwh_asian",        "type": "movie",  "name": "🌏 Asian"},
             {"id": "mwh_turkish",      "type": "movie",  "name": "🇹🇷 Turkish"},
         ])
-
-    # Series catalogs
-    if movies_enabled:
         catalogs.extend([
             {"id": "mwh_top_series",   "type": "series", "name": "📺 Top Series"},
             {"id": "mwh_indian_drama", "type": "series", "name": "🇮🇳 Indian Drama"},
-            {"id": "mwh_anime",        "type": "series", "name": "🎌 Anime"},
-            {"id": "mwh_anime_top",      "type": "series", "name": "🏆 Top Anime"},
-            {"id": "mwh_anime_seasonal", "type": "series", "name": "🌸 Seasonal Anime"},
+        ])
+
+    # Anime catalogs
+    if anime_enabled:
+        catalogs.extend([
+            {"id": "mwh_anime",         "type": "series", "name": "🎌 Anime"},
+            {"id": "mwh_anime_top",     "type": "series", "name": "🏆 Top Anime"},
+            {"id": "mwh_anime_seasonal","type": "series", "name": "🌸 Seasonal Anime"},
         ])
 
     # IPTV catalogs
     if iptv_enabled:
-        countries = iptv_countries if iptv_countries else ["All"]
-        for country in countries:
-            safe = country.lower().replace(" ", "_")
-            catalogs.append({
-                "id": f"mwh_iptv_{safe}",
-                "type": "tv",
-                "name": f"📺 {country} TV",
-            })
-        # FIFA
-        if fifa_enabled:
-            catalogs.append({"id": "mwh_fifa", "type": "tv", "name": "⚽ FIFA & Football"})
+        iptv_countries = config.get("iptv_countries", ["All"])
+        if "All" in iptv_countries:
+            catalogs.append({"id": "mwh_iptv_all", "type": "tv", "name": "📺 All Live TV"})
+        else:
+            for country in iptv_countries:
+                safe = country.lower().replace(" ", "_")
+                catalogs.append({"id": f"mwh_iptv_{safe}", "type": "tv", "name": f"📺 {country} TV"})
+
+    # FIFA
+    if fifa_enabled:
+        catalogs.append({"id": "mwh_fifa", "type": "tv", "name": "⚽ FIFA & Football"})
 
     return Manifest(
         id="com.maxwheytv.addon",
@@ -69,9 +69,9 @@ def get_manifest(config: dict = None) -> Manifest:
         name="Max WheyTV",
         description="Universal streaming — Movies, Series & Live TV from every corner of the world.",
         resources=[
-            {"name": "catalog", "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_"]},
-            {"name": "meta",    "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_"]},
-            {"name": "stream",  "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_"]},
+            {"name": "catalog", "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_", "mal_"]},
+            {"name": "meta",    "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_", "mal_"]},
+            {"name": "stream",  "types": ["movie", "series", "tv"], "idPrefixes": ["tt", "mwh_", "mal_"]},
         ],
         types=["movie", "series", "tv"],
         catalogs=catalogs,

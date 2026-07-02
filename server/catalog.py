@@ -1,5 +1,6 @@
 """Max WheyTV — Catalog endpoints."""
 import json
+import os
 import base64
 import re
 import asyncio
@@ -8,9 +9,8 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from server.config import (
-    TMDB_API_KEY, TVDB_API_KEY, RPDB_KEY,
+    TMDB_API_KEY, RPDB_KEY,
     MOVIEBOX_API, MOVIEBOX_HEADERS, MOVIEBOX_SECTIONS,
-    TMDB_GENRES, COUNTRY_CODES,
 )
 
 router = APIRouter()
@@ -18,7 +18,8 @@ router = APIRouter()
 # ─── Cache ───────────────────────────────────────────────────
 _catalog_cache = {}
 _cache_time = 0
-CACHE_TTL = 3600  # 1 hour
+CACHE_TTL = 3600
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
 
 def parse_config(config_str: str) -> dict:
@@ -41,7 +42,7 @@ def clean_title(t: str) -> str:
     return t
 
 
-# ─── MovieBox Catalog Builder ────────────────────────────────
+# ─── MovieBox Catalog ────────────────────────────────────────
 
 async def fetch_moviebox_page(client, gid, page=1, per_page=50):
     try:
@@ -99,7 +100,7 @@ async def tmdb_to_imdb_batch(client, tmdb_ids):
 async def build_moviebox_section(client, gid, item_type):
     all_items = []
     page = 1
-    while page <= 10:
+    while page <= 5:
         items, pager = await fetch_moviebox_page(client, gid, page)
         if not items:
             break
@@ -135,47 +136,77 @@ async def build_moviebox_section(client, gid, item_type):
     return metas
 
 
-# ─── IPTV Catalog ────────────────────────────────────────────
+# ─── Jikan Anime ─────────────────────────────────────────────
 
-def load_iptv_streams():
-    """Load IPTV streams from benchmark data."""
-    streams = {}
-    import os
-    benchmark_dir = "data"
-
-    for fname in os.listdir(benchmark_dir):
-        if fname.startswith("hq_") and fname.endswith(".json") and fname != "hq_streams.json":
-            country = fname.replace("hq_", "").replace(".json", "").replace("_", " ").title()
-            try:
-                with open(os.path.join(benchmark_dir, fname)) as f:
-                    data = json.load(f)
-                streams[country] = data
-            except:
-                pass
-
-    # Load FIFA
+async def fetch_jikan(client, endpoint, limit=25):
     try:
-        with open(os.path.join(benchmark_dir, "fifa_streams.json")) as f:
-            streams["FIFA"] = json.load(f)
+        r = await client.get(f"https://api.jikan.moe/v4/{endpoint}", timeout=10)
+        if r.status_code == 200:
+            return r.json().get("data", [])
     except:
         pass
-
-    return streams
-
-
-_iptv_cache = {}
-_iptv_cache_time = 0
+    return []
 
 
-def get_iptv_streams():
-    global _iptv_cache, _iptv_cache_time
-    if time.time() - _iptv_cache_time > 3600:
-        _iptv_cache = load_iptv_streams()
-        _iptv_cache_time = time.time()
-    return _iptv_cache
+def anime_to_meta(anime):
+    mal_id = anime.get("mal_id")
+    title = anime.get("title_english") or anime.get("title", "")
+    images = anime.get("images", {}).get("jpg", {})
+    poster = images.get("large_image_url") or images.get("image_url")
+    score = anime.get("score")
+    episodes = anime.get("episodes") or 0
+    synopsis = anime.get("synopsis", "")
+    year = anime.get("year") or (anime.get("aired", {}).get("from", "") or "")[:4]
+    genres = [g["name"] for g in anime.get("genres", [])]
+
+    return {
+        "id": f"mal_{mal_id}",
+        "type": "series",
+        "name": title,
+        "poster": poster,
+        "releaseInfo": str(year) if year else "",
+        "imdbRating": str(score) if score else None,
+        "genres": genres,
+        "description": synopsis[:300] if synopsis else "",
+    }
 
 
-# ─── Catalog Routes ──────────────────────────────────────────
+# ─── IPTV Catalog ────────────────────────────────────────────
+
+def load_iptv_country(country):
+    """Load IPTV streams for a specific country."""
+    safe = country.lower().replace(" ", "_")
+    filepath = os.path.join(DATA_DIR, f"hq_{safe}.json")
+    if os.path.exists(filepath):
+        with open(filepath) as f:
+            return json.load(f)
+    return []
+
+
+def load_iptv_all():
+    """Load all IPTV streams."""
+    all_streams = []
+    for fname in sorted(os.listdir(DATA_DIR)):
+        if fname.startswith("hq_") and fname.endswith(".json"):
+            with open(os.path.join(DATA_DIR, fname)) as f:
+                all_streams.extend(json.load(f))
+    return all_streams
+
+
+def load_fifa():
+    filepath = os.path.join(DATA_DIR, "fifa_streams.json")
+    if os.path.exists(filepath):
+        with open(filepath) as f:
+            return json.load(f)
+    return []
+
+
+# ─── Routes ──────────────────────────────────────────────────
+
+@router.on_event("startup")
+async def startup():
+    asyncio.create_task(refresh_catalog())
+
 
 @router.get("/{config}/catalog/{type}/{catalog_id}.json")
 async def cat_with_config(request: Request, config: str, type: str, catalog_id: str):
@@ -190,46 +221,36 @@ async def cat_no_config(request: Request, type: str, catalog_id: str):
 async def handle_catalog(request: Request, type: str, catalog_id: str, config_str: str):
     global _cache_time
     config = parse_config(config_str)
+    min_res = config.get("resolution", "1080p")
 
-    # IPTV catalogs
+    # ── IPTV ─────────────────────────────────────────────────
     if catalog_id.startswith("mwh_iptv_"):
-        country_key = catalog_id.replace("mwh_iptv_", "").replace("_", " ").title()
-        iptv = get_iptv_streams()
+        country_key = catalog_id.replace("mwh_iptv_", "")
 
-        if country_key == "All":
-            # Return all countries combined
-            all_streams = []
-            for country, streams in iptv.items():
-                if country != "FIFA":
-                    all_streams.extend(streams)
+        if country_key == "all":
+            streams = load_iptv_all()
         else:
-            all_streams = iptv.get(country_key, [])
+            streams = load_iptv_country(country_key)
 
-        # Filter by category if configured
-        categories = config.get("iptv_categories", [])
-        if categories:
-            filtered = []
-            for s in all_streams:
-                # IPTV streams don't have category in benchmark data, include all
-                filtered.append(s)
-            all_streams = filtered
+        # Filter by resolution
+        streams = filter_by_resolution(streams, min_res)
 
         metas = []
-        for i, s in enumerate(all_streams[:100]):
+        for i, s in enumerate(streams[:200]):
             metas.append({
-                "id": f"mwh_iptv_{i}",
+                "id": f"mwh_iptv_{i}_{country_key}",
                 "type": "tv",
                 "name": s.get("name", "Unknown"),
                 "poster": None,
             })
         return JSONResponse({"metas": metas})
 
-    # FIFA catalog
+    # ── FIFA ─────────────────────────────────────────────────
     if catalog_id == "mwh_fifa":
-        iptv = get_iptv_streams()
-        fifa = iptv.get("FIFA", [])
+        streams = load_fifa()
+        streams = filter_by_resolution(streams, min_res)
         metas = []
-        for i, s in enumerate(fifa):
+        for i, s in enumerate(streams):
             metas.append({
                 "id": f"mwh_fifa_{i}",
                 "type": "tv",
@@ -238,17 +259,19 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
             })
         return JSONResponse({"metas": metas})
 
-    # Anime catalogs (Jikan)
-    if catalog_id in ("mwh_anime_top", "mwh_anime_seasonal"):
+    # ── Anime (Jikan) ────────────────────────────────────────
+    if catalog_id in ("mwh_anime_top", "mwh_anime_seasonal", "mwh_anime"):
         async with httpx.AsyncClient(timeout=httpx.Timeout(10), follow_redirects=True) as client:
             if catalog_id == "mwh_anime_top":
-                anime_list = await fetch_jikan_top(client)
+                anime_list = await fetch_jikan(client, "top/anime?limit=25")
+            elif catalog_id == "mwh_anime_seasonal":
+                anime_list = await fetch_jikan(client, "seasons/now?limit=25")
             else:
-                anime_list = await fetch_jikan_seasonal(client)
+                anime_list = await fetch_jikan(client, "top/anime?limit=25")
             metas = [anime_to_meta(a) for a in anime_list]
             return JSONResponse({"metas": metas})
 
-    # MovieBox catalogs
+    # ── MovieBox ─────────────────────────────────────────────
     section_key = catalog_id.replace("mwh_", "")
     if section_key not in MOVIEBOX_SECTIONS:
         return JSONResponse({"metas": []})
@@ -264,7 +287,37 @@ async def handle_catalog(request: Request, type: str, catalog_id: str, config_st
             metas = await build_moviebox_section(client, section["gid"], section["type"])
             _catalog_cache[section_key] = metas
 
-    return JSONResponse({"metas": metas})
+    return JSONResponse({"metas": metas[:200]})
+
+
+def filter_by_resolution(streams, min_res):
+    """Filter streams by minimum resolution."""
+    if min_res == "all":
+        return streams
+    filtered = []
+    for s in streams:
+        q = s.get("quality", "Unknown")
+        name = s.get("name", "").lower()
+        lat = s.get("latency_ms", 9999)
+
+        # Skip geo-blocked
+        if "geo-blocked" in name:
+            continue
+
+        # Resolution check
+        if min_res == "4k":
+            if q == "4K":
+                filtered.append(s)
+        elif min_res == "1080p":
+            if q in ("4K", "1080p"):
+                filtered.append(s)
+        elif min_res == "720p":
+            if q in ("4K", "1080p", "720p"):
+                filtered.append(s)
+        else:
+            filtered.append(s)
+
+    return filtered
 
 
 async def refresh_catalog():
@@ -282,73 +335,4 @@ async def refresh_catalog():
                 total += len(result)
         _catalog_cache = new_cache
         _cache_time = time.time()
-        print(f"[Catalog] Refreshed: {total} items across {len(MOVIEBOX_SECTIONS)} sections")
-
-
-# ─── JIKAN ANIME CATALOG ─────────────────────────────────────
-
-async def fetch_jikan_top(client, page=1, limit=25):
-    """Fetch top anime from Jikan API."""
-    try:
-        r = await client.get(f"https://api.jikan.moe/v4/top/anime?page={page}&limit={limit}", timeout=10)
-        if r.status_code == 200:
-            return r.json().get("data", [])
-    except:
-        pass
-    return []
-
-
-async def fetch_jikan_seasonal(client, page=1, limit=25):
-    """Fetch seasonal anime from Jikan API."""
-    try:
-        r = await client.get(f"https://api.jikan.moe/v4/seasons/now?page={page}&limit={limit}", timeout=10)
-        if r.status_code == 200:
-            return r.json().get("data", [])
-    except:
-        pass
-    return []
-
-
-async def fetch_jikan_search(client, query, limit=10):
-    """Search anime on Jikan."""
-    try:
-        r = await client.get(f"https://api.jikan.moe/v4/anime?q={query}&limit={limit}", timeout=10)
-        if r.status_code == 200:
-            return r.json().get("data", [])
-    except:
-        pass
-    return []
-
-
-def anime_to_meta(anime):
-    """Convert Jikan anime to Stremio meta format."""
-    mal_id = anime.get("mal_id")
-    title = anime.get("title", "")
-    title_english = anime.get("title_english", "")
-    images = anime.get("images", {}).get("jpg", {})
-    poster = images.get("large_image_url") or images.get("image_url")
-    score = anime.get("score")
-    episodes = anime.get("episodes")
-    synopsis = anime.get("synopsis", "")
-    year = anime.get("year") or (anime.get("aired", {}).get("from", "") or "")[:4]
-    genres = [g["name"] for g in anime.get("genres", [])]
-
-    return {
-        "id": f"mal_{mal_id}",
-        "type": "series",
-        "name": title_english or title,
-        "poster": poster,
-        "releaseInfo": str(year) if year else "",
-        "imdbRating": str(score) if score else None,
-        "genres": genres,
-        "description": synopsis[:300] if synopsis else "",
-        "videos": [
-            {
-                "id": f"mal_{mal_id}:{i+1}",
-                "title": f"Episode {i+1}",
-                "season": 1,
-                "episode": i + 1,
-            }
-            for i in range(min(episodes or 0, 100))
-        ],
-    }
+        print(f"[Catalog] Refreshed: {total} MovieBox items")

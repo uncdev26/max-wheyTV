@@ -1,12 +1,12 @@
 """Max WheyTV — Main application."""
 from contextlib import asynccontextmanager
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from server.catalog import router as catalog_router
+from server.catalog import router as catalog_router, parse_config
 from server.routes import router as routes_router
 from server.manifest import get_manifest
 from server.config import HOST, PORT
@@ -43,21 +43,20 @@ async def root():
 
 
 @app.get("/manifest.json")
-async def manifest_no_config(request):
+async def manifest_no_config(request: Request):
     manifest = get_manifest()
-    base = str(request.base_url)
-    manifest.logo = base + "logo.png"
-    return manifest
+    base = str(request.base_url).rstrip("/")
+    manifest.logo = f"{base}/logo.png"
+    return manifest.model_dump()
 
 
 @app.get("/{config}/manifest.json")
-async def manifest_with_config(request, config: str):
-    from server.catalog import parse_config
+async def manifest_with_config(request: Request, config: str):
     cfg = parse_config(config)
     manifest = get_manifest(cfg)
-    base = str(request.base_url)
-    manifest.logo = base + "logo.png"
-    return manifest
+    base = str(request.base_url).rstrip("/")
+    manifest.logo = f"{base}/logo.png"
+    return manifest.model_dump()
 
 
 app.mount("/configure", StaticFiles(directory="web", html=True), name="web")
