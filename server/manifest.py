@@ -25,7 +25,7 @@ def get_manifest(config: dict = None) -> Manifest:
 
     catalogs = []
 
-    # Movie catalogs
+    # Movie catalogs (use tt prefix — Cinemeta handles metadata)
     if movies_enabled:
         catalogs.extend([
             {"id": "mwh_trending",     "type": "movie",  "name": "🔥 Trending"},
@@ -41,15 +41,15 @@ def get_manifest(config: dict = None) -> Manifest:
             {"id": "mwh_indian_drama", "type": "series", "name": "🇮🇳 Indian Drama"},
         ])
 
-    # Anime catalogs
+    # Anime catalogs (use mwh_mal_ prefix — our meta handles it)
     if anime_enabled:
         catalogs.extend([
-            {"id": "mwh_anime",         "type": "series", "name": "🎌 Anime"},
-            {"id": "mwh_anime_top",     "type": "series", "name": "🏆 Top Anime"},
-            {"id": "mwh_anime_seasonal","type": "series", "name": "🌸 Seasonal Anime"},
+            {"id": "mwh_anime",          "type": "series", "name": "🎌 Anime"},
+            {"id": "mwh_anime_top",      "type": "series", "name": "🏆 Top Anime"},
+            {"id": "mwh_anime_seasonal", "type": "series", "name": "🌸 Seasonal Anime"},
         ])
 
-    # IPTV catalogs
+    # IPTV catalogs (use mwh_iptv_ prefix — our meta handles it)
     if iptv_enabled:
         iptv_countries = config.get("iptv_countries", ["All"])
         if "All" in iptv_countries:
@@ -59,7 +59,7 @@ def get_manifest(config: dict = None) -> Manifest:
                 safe = country.lower().replace(" ", "_")
                 catalogs.append({"id": f"mwh_iptv_{safe}", "type": "tv", "name": f"📺 {country} TV"})
 
-    # FIFA
+    # FIFA (use mwh_fifa_ prefix — our meta handles it)
     if fifa_enabled:
         catalogs.append({"id": "mwh_fifa", "type": "tv", "name": "⚽ FIFA & Football"})
 
@@ -69,13 +69,18 @@ def get_manifest(config: dict = None) -> Manifest:
         name="Max WheyTV",
         description="Universal streaming — Movies, Series & Live TV from every corner of the world.",
         resources=[
-            {"name": "catalog", "types": ["movie", "series", "tv"], "idPrefixes": ["mwh_"]},
-            {"name": "meta",    "types": ["movie", "series", "tv"], "idPrefixes": ["mwh_"]},
-            {"name": "stream",  "types": ["movie", "series", "tv"], "idPrefixes": ["mwh_"]},
+            # Movies/Series: tt prefix — Stremio uses Cinemeta for metadata
+            {"name": "catalog", "types": ["movie", "series"], "idPrefixes": ["tt"]},
+            {"name": "meta",    "types": ["movie", "series"], "idPrefixes": ["tt"]},
+            {"name": "stream",  "types": ["movie", "series"], "idPrefixes": ["tt"]},
+            # IPTV: mwh_ prefix — our addon handles metadata
+            {"name": "catalog", "types": ["tv"], "idPrefixes": ["mwh_"]},
+            {"name": "meta",    "types": ["tv"], "idPrefixes": ["mwh_"]},
+            {"name": "stream",  "types": ["tv"], "idPrefixes": ["mwh_"]},
         ],
         types=["movie", "series", "tv"],
         catalogs=catalogs,
-        idPrefixes=["mwh_"],
+        idPrefixes=["tt", "mwh_"],
         background="https://raw.githubusercontent.com/Stremio/stremio-art/main/originals/Ahlen%20Ken%20A.%20Batalon.png",
         behaviorHints={"configurable": True, "configurationRequired": False},
     )

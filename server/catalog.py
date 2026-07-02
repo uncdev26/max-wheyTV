@@ -95,7 +95,7 @@ async def build_moviebox_section(client, gid, item_type):
         year = (item.get("releaseDate") or "")[:4]
 
         # Use mwh_ prefix ID (not tt) so Stremio calls OUR meta endpoint
-        meta_id = f"mwh_{imdb}"
+        meta_id = imdb
 
         metas.append({
             "id": meta_id,

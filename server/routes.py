@@ -42,9 +42,6 @@ async def meta_endpoint(request: Request, type: str, id: str):
             return await get_anime_meta(id)
 
         # ── Movies/Series (mwh_ prefix with IMDB ID) ─────────
-        if id.startswith("mwh_tt"):
-            imdb_id = id.replace("mwh_", "")
-            return await get_tmdb_meta(imdb_id, type)
 
         # ── Direct IMDB ID ───────────────────────────────────
         if id.startswith("tt"):
@@ -241,7 +238,7 @@ async def handle_stream(request: Request, type: str, id: str, config_str: str):
         return await get_anime_stream(id)
 
     # ── Movies/Series ────────────────────────────────────────
-    if id.startswith("mwh_tt") or id.startswith("tt"):
+    if id.startswith("tt"):
         imdb_id = id.replace("mwh_", "")
         return await get_moviebox_stream(request, type, imdb_id, config)
 
