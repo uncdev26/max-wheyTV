@@ -25,7 +25,7 @@ def get_manifest(config: dict = None) -> Manifest:
 
     catalogs = []
 
-    # Movie catalogs (use tt prefix — Cinemeta handles metadata)
+    # Movie catalogs
     if movies_enabled:
         catalogs.extend([
             {"id": "mwh_trending",     "type": "movie",  "name": "🔥 Trending"},
@@ -41,7 +41,7 @@ def get_manifest(config: dict = None) -> Manifest:
             {"id": "mwh_indian_drama", "type": "series", "name": "🇮🇳 Indian Drama"},
         ])
 
-    # Anime catalogs (use mwh_mal_ prefix — our meta handles it)
+    # Anime catalogs
     if anime_enabled:
         catalogs.extend([
             {"id": "mwh_anime",          "type": "series", "name": "🎌 Anime"},
@@ -49,7 +49,7 @@ def get_manifest(config: dict = None) -> Manifest:
             {"id": "mwh_anime_seasonal", "type": "series", "name": "🌸 Seasonal Anime"},
         ])
 
-    # IPTV catalogs (use mwh_iptv_ prefix — our meta handles it)
+    # IPTV catalogs
     if iptv_enabled:
         iptv_countries = config.get("iptv_countries", ["All"])
         if "All" in iptv_countries:
@@ -59,7 +59,7 @@ def get_manifest(config: dict = None) -> Manifest:
                 safe = country.lower().replace(" ", "_")
                 catalogs.append({"id": f"mwh_iptv_{safe}", "type": "tv", "name": f"📺 {country} TV"})
 
-    # FIFA (use mwh_fifa_ prefix — our meta handles it)
+    # FIFA
     if fifa_enabled:
         catalogs.append({"id": "mwh_fifa", "type": "tv", "name": "⚽ FIFA & Football"})
 
@@ -69,11 +69,10 @@ def get_manifest(config: dict = None) -> Manifest:
         name="Max WheyTV",
         description="Universal streaming — Movies, Series & Live TV from every corner of the world.",
         resources=[
-            # Movies/Series: tt prefix — Stremio uses Cinemeta for metadata
+            # Movies/Series: catalog + stream only, NO meta (Cinemeta handles it)
             {"name": "catalog", "types": ["movie", "series"], "idPrefixes": ["tt"]},
-            {"name": "meta",    "types": ["movie", "series"], "idPrefixes": ["tt"]},
             {"name": "stream",  "types": ["movie", "series"], "idPrefixes": ["tt"]},
-            # IPTV: mwh_ prefix — our addon handles metadata
+            # IPTV: catalog + meta + stream (we handle everything)
             {"name": "catalog", "types": ["tv"], "idPrefixes": ["mwh_"]},
             {"name": "meta",    "types": ["tv"], "idPrefixes": ["mwh_"]},
             {"name": "stream",  "types": ["tv"], "idPrefixes": ["mwh_"]},
