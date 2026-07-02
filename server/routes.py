@@ -425,7 +425,25 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
                     return True
             return False
 
-        stream_results.sort(key=lambda x: (0 if (not all_langs and lang_matches(x.get("audio_lang"))) else 1, -getattr(x["download"], "resolution", 0)))
+        # Sort: user's audio language first, then by resolution
+        def sort_key(x):
+            audio = x.get("audio_lang", "")
+            res = getattr(x["download"], "resolution", 0)
+            
+            if all_langs:
+                # No language filter: prioritize streams WITH audio lang, then by resolution
+                has_audio = 1 if audio else 0
+                return (-has_audio, -res)
+            else:
+                # Language filter: prioritize matching audio, then non-matching
+                if audio and lang_matches(audio):
+                    return (0, -res)  # Best: matching audio language
+                elif not audio and not x.get("subtitle_langs"):
+                    return (1, -res)  # OK: no lang info (might be original)
+                else:
+                    return (2, -res)  # Last: non-matching or subtitle-only
+        
+        stream_results.sort(key=sort_key)
 
         streams = []
         seen = set()
@@ -448,12 +466,16 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
             res_text = f"{resolution}p" if resolution else "?"
             size_text = f"{size / (1024*1024):.0f} MB" if size else ""
 
-            # Clean stream title: quality + audio language only
+            # Stream title: quality + size + audio/subtitle info
             desc = f"🎬 {res_text}"
             if size_text:
                 desc += f" • 💾 {size_text}"
-            if audio or True:
-                desc += f" • {audio or "Original"}"
+            if audio:
+                desc += f" • 🔊 {audio}"
+            elif subs:
+                desc += f" • 💬 Subs: {', '.join(subs[:4])}"
+            else:
+                desc += f" • 🔊 Original"
 
             streams.append({
                 "name": "Max WheyTV",
