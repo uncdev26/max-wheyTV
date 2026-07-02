@@ -152,21 +152,25 @@ def extract_match_language_info(match: dict) -> dict:
     subtitle_langs = []
     seen_subs = set()
 
-    # 1. Try to get audio language from dubs field (most reliable)
-    dubs = getattr(item, "dubs", None)
-    if dubs:
-        # Collect all available dub languages
-        dub_names = []
-        for dub in dubs:
-            lan_name = getattr(dub, "lanName", None)
-            if lan_name and lan_name not in dub_names:
-                dub_names.append(lan_name)
-        
-        if len(dub_names) == 1:
-            audio_lang = dub_names[0]
-        elif len(dub_names) > 1:
-            # Multiple dubs available - show all
-            audio_lang = ", ".join(dub_names)
+    # 1. Check if this is a dub-expanded match (most specific)
+    dub_language = match.get("dub_language")
+    if dub_language:
+        audio_lang = dub_language
+    
+    # 2. Try to get audio language from dubs field
+    if not audio_lang:
+        dubs = getattr(item, "dubs", None)
+        if dubs:
+            dub_names = []
+            for dub in dubs:
+                lan_name = getattr(dub, "lanName", None)
+                if lan_name and lan_name not in dub_names:
+                    dub_names.append(lan_name)
+            
+            if len(dub_names) == 1:
+                audio_lang = dub_names[0]
+            elif len(dub_names) > 1:
+                audio_lang = ", ".join(dub_names)
     
     # 2. Fallback: extract from title brackets
     if not audio_lang:
@@ -251,6 +255,20 @@ async def extract_streams(
             pass
         return ([], match)
 
+    # Collect dub detailPaths from v2 matches for additional language streams
+    dub_fetches = []
+    for match in matches:
+        if match["version"] == "v2":
+            item = match["item"]
+            dubs = getattr(item, "dubs", None)
+            if dubs and len(dubs) > 1:
+                main_detail = getattr(item, "detailPath", "")
+                for dub in dubs:
+                    dub_detail = getattr(dub, "detailPath", "")
+                    dub_lan = getattr(dub, "lanName", "")
+                    if dub_detail and dub_detail != main_detail and dub_lan:
+                        dub_fetches.append((match, dub_detail, dub_lan))
+
     for match in matches:
         if match["version"] == "v2":
             tasks.append(fetch_v2(match))
@@ -258,6 +276,40 @@ async def extract_streams(
             tasks.append(fetch_v1(match))
         elif match["version"] == "v3":
             tasks.append(fetch_v3(match))
+
+    # Add dub fetch tasks
+    async def fetch_dub_streams(original_match, dub_detail_path, dub_language):
+        """Fetch streams for a specific dub version."""
+        try:
+            from moviebox.web.core import SingleItemDetails
+            from moviebox.web.streams import DownloadableSingleFilesDetail
+            from moviebox.web.requests import Session as WebSession
+
+            session = WebSession()
+            await session.create()
+
+            # Step 1: Get the dub's item details
+            details = SingleItemDetails(session)
+            model = await details.get_content_model(dub_detail_path)
+
+            # Step 2: Fetch streams using the dub's item
+            dl = DownloadableSingleFilesDetail(session, model.subject)
+            res = await dl.get_content_model()
+            await session.close()
+
+            # Tag with dub language
+            dub_match = dict(original_match)
+            dub_match["dub_language"] = dub_language
+            return (res.downloads, dub_match)
+        except Exception as e:
+            try:
+                await session.close()
+            except:
+                pass
+            return ([], original_match)
+
+    for match, dub_detail, dub_lan in dub_fetches:
+        tasks.append(fetch_dub_streams(match, dub_detail, dub_lan))
 
     results = await asyncio.gather(*tasks)
 
