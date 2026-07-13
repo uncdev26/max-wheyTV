@@ -175,6 +175,7 @@
         const state = {
             iptv: true, fifa: true, anime: true,
             iptv_countries: ['All'],
+            catalog_languages: ['all'],
             languages: ['all'],
             resolution: '1080p',
         };
@@ -206,7 +207,7 @@
         }
 
         setupGrid('countryGrid', 'iptv_countries');
-        setupGrid('movieLangGrid', 'languages');
+        setupGrid('movieLangGrid', 'catalog_languages');
         setupGrid('langGrid', 'languages');
 
         document.getElementById('iptv').addEventListener('change', e => { state.iptv = e.target.checked; updateLink(); });

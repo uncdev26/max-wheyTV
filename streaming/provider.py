@@ -19,12 +19,33 @@ from moviebox.mobile.core import (
 )
 from moviebox.mobile.http_client import ProviderHttpClient as SessionV3
 from moviebox.web.constants import SubjectType as SubjectTypeV2
-from moviebox.web.core import Search as SearchV2
+from moviebox.web.core import Search as SearchV2, SearchWithFilter
 from moviebox.web.requests import Session as SessionV2
 from moviebox.web.streams import (
     DownloadableSingleFilesDetail as WebSingle,
     DownloadableTVSeriesFilesDetail as WebTV,
 )
+from moviebox.web.types import FilterParams
+
+# Map ISO language codes to MovieBox filter API language values
+LANG_CODE_TO_FILTER = {
+    "en": "English dub",
+    "hi": "Hindi dub",
+    "fr": "French dub",
+    "bn": "Bengali dub",
+    "ur": "Urdu dub",
+    "pa": "Punjabi dub",
+    "ta": "Tamil dub",
+    "te": "Telugu dub",
+    "ml": "Malayalam dub",
+    "kn": "Kannada dub",
+    "ar": "Arabic dub",
+    "tl": "Tagalog dub",
+    "id": "Indonesian dub",
+    "ru": "Russian dub",
+    "es": "Spanish dub",
+    "ku": "Kurdish sub",
+}
 
 # Pattern to extract language from title brackets e.g. "Solo Leveling [Hindi]" or "(Hindi Dubbed)"
 TITLE_LANG_PATTERN = re.compile(r"\[([^\]]+)\]\s*$|\(([A-Za-z\s]+)\)\s*$")
@@ -102,21 +123,98 @@ def _match_score(match: dict) -> int:
         pass  # Language listings are now welcome
     return score
 
-async def find_fast_matches(title: str, year: str, is_movie: bool) -> list[dict]:
-    """Fast mode: get all matches including language-specific versions."""
-    try:
-        s = SessionV2()
-        st = SubjectTypeV2.MOVIES if is_movie else SubjectTypeV2.TV_SERIES
-        sv = SearchV2(s, query=title, subject_type=st, per_page=10)
-        res = await sv.get_content_model()
-        matches = []
-        for item in res.items:
-            if not year or str(item.releaseDate.year) == str(year):
-                matches.append({"item": item, "session": s, "version": "v2"})
-        matches.sort(key=_match_score, reverse=True)
-        return matches
-    except Exception:
-        return []
+async def find_fast_matches(title: str, year: str, is_movie: bool, pref_lang_codes: list[str] = None) -> list[dict]:
+    """Fast mode: get all matches including language-specific versions.
+    
+    When pref_lang_codes is provided (e.g. ["hi", "en", "ta"]), runs parallel
+    language-filtered searches via SearchWithFilter alongside the main search
+    to find dub variants the basic title search would miss.
+    """
+    pref_lang_codes = pref_lang_codes or []
+
+    async def _title_search():
+        """Normal title search — returns the default/original listings."""
+        try:
+            s = SessionV2()
+            st = SubjectTypeV2.MOVIES if is_movie else SubjectTypeV2.TV_SERIES
+            sv = SearchV2(s, query=title, subject_type=st, per_page=10)
+            res = await sv.get_content_model()
+            matches = []
+            for item in res.items:
+                if not year or str(item.releaseDate.year) == str(year):
+                    matches.append({"item": item, "session": s, "version": "v2"})
+            return matches
+        except Exception:
+            return []
+
+    async def _filtered_search(lang_code: str):
+        """Language-filtered search — finds dub-specific listings."""
+        filter_value = LANG_CODE_TO_FILTER.get(lang_code)
+        if not filter_value:
+            return []
+        try:
+            s = SessionV2()
+            st = SubjectTypeV2.MOVIES if is_movie else SubjectTypeV2.TV_SERIES
+            fp = FilterParams(language=filter_value)
+            sv = SearchWithFilter(subject_type=st, session=s, filter_params=fp, per_page=10)
+            res = await sv.get_content_model()
+            matches = []
+            for item in res.items:
+                # Filter search results don't have a query, so match by title similarity
+                item_title = getattr(item, "title", "").lower()
+                search_title = title.lower()
+                # Accept if the search title appears in the item title or vice versa
+                if search_title in item_title or item_title in search_title or _titles_match(search_title, item_title):
+                    matches.append({
+                        "item": item,
+                        "session": s,
+                        "version": "v2",
+                        "filter_lang": lang_code,
+                    })
+            return matches
+        except Exception:
+            return []
+
+    # Build task list: always do the main title search
+    tasks = [_title_search()]
+
+    # Add language-filtered searches for each non-"all" preferred language
+    effective_langs = [l for l in pref_lang_codes if l != "all" and l in LANG_CODE_TO_FILTER]
+    for lang_code in effective_langs:
+        tasks.append(_filtered_search(lang_code))
+
+    results = await asyncio.gather(*tasks)
+
+    # Merge, deduplicate by detailPath
+    seen_paths = set()
+    all_matches = []
+    for batch in results:
+        for match in batch:
+            detail_path = getattr(match["item"], "detailPath", "")
+            if detail_path and detail_path in seen_paths:
+                continue
+            if detail_path:
+                seen_paths.add(detail_path)
+            all_matches.append(match)
+
+    all_matches.sort(key=_match_score, reverse=True)
+    return all_matches
+
+
+def _titles_match(a: str, b: str) -> bool:
+    """Fuzzy title match — checks if core words overlap significantly."""
+    words_a = set(re.findall(r'[a-z0-9]+', a))
+    words_b = set(re.findall(r'[a-z0-9]+', b))
+    if not words_a or not words_b:
+        return False
+    # Remove common noise words
+    noise = {"the", "a", "an", "and", "of", "in", "to", "for", "is", "on", "at"}
+    words_a -= noise
+    words_b -= noise
+    if not words_a or not words_b:
+        return len(words_a) == len(words_b)  # both empty after noise removal
+    overlap = words_a & words_b
+    return len(overlap) >= min(len(words_a), len(words_b)) * 0.6
 
 
 async def find_all_matches(title: str, year: str, is_movie: bool) -> list[dict]:
@@ -206,9 +304,9 @@ async def extract_streams(
             else:
                 dl = WebTV(match["session"], match["item"])
                 res = await dl.get_content_model(season=season, episode=episode)
-            return (res.downloads, match)
+            return (res.downloads, match, res.captions)
         except Exception:
-            return ([], match)
+            return ([], match, [])
 
     async def fetch_v1(match):
         try:
@@ -218,9 +316,9 @@ async def extract_streams(
             else:
                 dl = LegacyTV(match["session"], match["item"])
                 res = await dl.get_content_model(season=season, episode=episode)
-            return (res.downloads, match)
+            return (res.downloads, match, res.captions)
         except Exception:
-            return ([], match)
+            return ([], match, [])
 
     async def fetch_v3(match):
         resolutions_to_try = [
@@ -243,7 +341,7 @@ async def extract_streams(
                         episode=episode,
                     )
                 await match["session"].close()
-                return (res.list, match)
+                return (res.list, match, [])
             except Exception as e:
                 if "406" not in str(e):
                     break
@@ -251,7 +349,7 @@ async def extract_streams(
             await match["session"].close()
         except Exception:
             pass
-        return ([], match)
+        return ([], match, [])
 
     # Collect dub detailPaths from v2 matches for additional language streams
     dub_fetches = []
@@ -277,34 +375,35 @@ async def extract_streams(
 
     # Add dub fetch tasks
     async def fetch_dub_streams(original_match, dub_detail_path, dub_language):
-        """Fetch streams for a specific dub version."""
+        """Fetch streams for a specific dub version — works for both movies and TV series."""
         try:
-            from moviebox.web.core import SingleItemDetails
-            from moviebox.web.streams import DownloadableSingleFilesDetail
+            from moviebox.web.core import ItemDetails
+            from moviebox.web.streams import (
+                DownloadableSingleFilesDetail,
+                DownloadableTVSeriesFilesDetail,
+            )
             from moviebox.web.requests import Session as WebSession
 
             session = WebSession()
-            await session.create()
 
             # Step 1: Get the dub's item details
-            details = SingleItemDetails(session)
+            details = ItemDetails(session)
             model = await details.get_content_model(dub_detail_path)
 
-            # Step 2: Fetch streams using the dub's item
-            dl = DownloadableSingleFilesDetail(session, model.subject)
-            res = await dl.get_content_model()
-            await session.close()
+            # Step 2: Fetch streams using the correct downloader for movies vs TV
+            if is_movie:
+                dl = DownloadableSingleFilesDetail(session, model.subject)
+                res = await dl.get_content_model()
+            else:
+                dl = DownloadableTVSeriesFilesDetail(session, model.subject)
+                res = await dl.get_content_model(season=season, episode=episode)
 
             # Tag with dub language
             dub_match = dict(original_match)
             dub_match["dub_language"] = dub_language
-            return (res.downloads, dub_match)
-        except Exception as e:
-            try:
-                await session.close()
-            except:
-                pass
-            return ([], original_match)
+            return (res.downloads, dub_match, res.captions)
+        except Exception:
+            return ([], original_match, [])
 
     for match, dub_detail, dub_lan in dub_fetches:
         tasks.append(fetch_dub_streams(match, dub_detail, dub_lan))
@@ -312,7 +411,7 @@ async def extract_streams(
     results = await asyncio.gather(*tasks)
 
     all_streams = []
-    for downloads, match in results:
+    for downloads, match, captions in results:
         lang_info = extract_match_language_info(match)
         for dl in downloads:
             all_streams.append(
@@ -320,6 +419,7 @@ async def extract_streams(
                     "download": dl,
                     "audio_lang": lang_info["audio_lang"],
                     "subtitle_langs": lang_info["subtitle_langs"],
+                    "captions": captions,
                 }
             )
 
