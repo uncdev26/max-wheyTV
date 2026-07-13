@@ -22,7 +22,7 @@ def get_manifest(config: dict = None) -> Manifest:
     iptv_enabled = config.get("iptv", True)
     fifa_enabled = config.get("fifa", True)
     anime_enabled = config.get("anime", True)
-    languages = config.get("languages", ["all"])
+    languages = config.get("catalog_languages", config.get("languages", ["all"]))
 
     catalogs = []
 

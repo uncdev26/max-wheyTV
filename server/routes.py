@@ -405,14 +405,21 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
         "de": "german", "it": "italian", "pt": "portuguese", "ru": "russian",
         "ja": "japanese", "ko": "korean", "zh": "chinese", "ar": "arabic",
         "tr": "turkish", "th": "thai", "pl": "polish", "ta": "tamil", "te": "telugu",
+        "bn": "bengali", "ur": "urdu", "pa": "punjabi", "ml": "malayalam", "kn": "kannada",
+        "tl": "tagalog", "id": "indonesian",
     }
 
     try:
         from streaming.provider import find_fast_matches, extract_streams
+        from streaming.helpers import get_stream_filename
 
         pref_lang_names = [LANG_MAP.get(l, l).capitalize() for l in pref_langs if l in LANG_MAP]
 
-        matches = await find_fast_matches(title, "", is_movie=(type == "movie"))
+        # Pass preferred language codes so provider does parallel language-filtered searches
+        matches = await find_fast_matches(
+            title, "", is_movie=(type == "movie"),
+            pref_lang_codes=pref_langs,
+        )
         if not matches:
             return JSONResponse({"streams": []})
 
@@ -423,7 +430,7 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
                 return "orig" in pref_langs
             al = audio_lang.lower()
             for lp in pref_lang_names:
-                if lp in al:
+                if lp.lower() in al:
                     return True
             return False
 
@@ -461,6 +468,7 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
             size = getattr(dl, "size", 0)
             audio = sd.get("audio_lang", "")
             subs = sd.get("subtitle_langs", [])
+            captions = sd.get("captions", [])
 
             # Resolution filter: remove everything below 1080p
             if resolution and resolution < 1080:
@@ -472,7 +480,7 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
             res_text = f"{resolution}p" if resolution else "?"
             size_text = f"{size / (1024*1024):.0f} MB" if size else ""
 
-            # Stream title: quality + size + audio only
+            # Stream title: quality + size + audio + subtitle count
             desc = f"🎬 {res_text}"
             if size_text:
                 desc += f" • 💾 {size_text}"
@@ -480,25 +488,55 @@ async def search_moviebox(title: str, type: str, season: int, episode: int,
                 desc += f" • 🔊 {audio}"
             else:
                 desc += f" • 🔊 Original"
+            if subs:
+                desc += f" • 💬 {len(subs)} subs"
 
-            streams.append({
+            # Build Stremio subtitle tracks from captions
+            subtitle_tracks = []
+            seen_sub_langs = set()
+            for cap in captions:
+                cap_lang = getattr(cap, "lan", "") or ""
+                cap_name = getattr(cap, "lanName", "") or cap_lang
+                cap_url = str(getattr(cap, "url", ""))
+                if cap_url and cap_lang and cap_lang not in seen_sub_langs:
+                    seen_sub_langs.add(cap_lang)
+                    subtitle_tracks.append({
+                        "id": f"mwh_{cap_lang}",
+                        "url": cap_url,
+                        "lang": cap_lang,
+                        "title": cap_name,
+                    })
+
+            stream_obj = {
                 "name": "Max WheyTV",
                 "title": desc,
                 "url": url,
-                "poster": f"https://api.ratingposterdb.com/t0-free-rpdb/imdb/poster-default/{imdb_id}.jpg" if imdb_id else None,
                 "behaviorHints": {
                     "notWebReady": True,
+                    "filename": get_stream_filename(url),
                     "proxyHeaders": {"request": {
                         "Referer": "https://fmoviesunblocked.net/",
                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                     }},
                 },
-            })
+            }
+
+            # Add poster if IMDB ID available
+            if imdb_id:
+                stream_obj["poster"] = f"https://api.ratingposterdb.com/t0-free-rpdb/imdb/poster-default/{imdb_id}.jpg"
+
+            # Add subtitles if available
+            if subtitle_tracks:
+                stream_obj["subtitles"] = subtitle_tracks
+
+            streams.append(stream_obj)
 
         return JSONResponse({"streams": streams})
 
     except Exception as e:
         print(f"[Stream] MovieBox error: {e}")
+        import traceback
+        traceback.print_exc()
         return JSONResponse({"streams": []})
 
 

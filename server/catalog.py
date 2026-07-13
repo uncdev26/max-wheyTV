@@ -12,6 +12,19 @@ router = APIRouter()
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
+# Language code → display name for catalog releaseInfo tags
+LANG_TAG = {
+    "en": "English", "hi": "Hindi", "es": "Spanish", "fr": "French",
+    "de": "German", "it": "Italian", "pt": "Portuguese", "ru": "Russian",
+    "ja": "Japanese", "ko": "Korean", "zh": "Chinese", "ar": "Arabic",
+    "tr": "Turkish", "th": "Thai", "pl": "Polish", "ta": "Tamil", "te": "Telugu",
+    "bn": "Bengali", "ur": "Urdu", "pa": "Punjabi", "ml": "Malayalam",
+    "kn": "Kannada", "tl": "Tagalog", "id": "Indonesian", "sv": "Swedish",
+    "nl": "Dutch", "da": "Danish", "no": "Norwegian", "fi": "Finnish",
+    "cs": "Czech", "ro": "Romanian", "hu": "Hungarian", "uk": "Ukrainian",
+    "vi": "Vietnamese", "ms": "Malay", "he": "Hebrew", "fa": "Persian",
+}
+
 
 def parse_config(config_str: str) -> dict:
     try:
