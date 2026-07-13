@@ -19,33 +19,12 @@ from moviebox.mobile.core import (
 )
 from moviebox.mobile.http_client import ProviderHttpClient as SessionV3
 from moviebox.web.constants import SubjectType as SubjectTypeV2
-from moviebox.web.core import Search as SearchV2, SearchWithFilter
+from moviebox.web.core import Search as SearchV2, ItemDetails
 from moviebox.web.requests import Session as SessionV2
 from moviebox.web.streams import (
     DownloadableSingleFilesDetail as WebSingle,
     DownloadableTVSeriesFilesDetail as WebTV,
 )
-from moviebox.web.types import FilterParams
-
-# Map ISO language codes to MovieBox filter API language values
-LANG_CODE_TO_FILTER = {
-    "en": "English dub",
-    "hi": "Hindi dub",
-    "fr": "French dub",
-    "bn": "Bengali dub",
-    "ur": "Urdu dub",
-    "pa": "Punjabi dub",
-    "ta": "Tamil dub",
-    "te": "Telugu dub",
-    "ml": "Malayalam dub",
-    "kn": "Kannada dub",
-    "ar": "Arabic dub",
-    "tl": "Tagalog dub",
-    "id": "Indonesian dub",
-    "ru": "Russian dub",
-    "es": "Spanish dub",
-    "ku": "Kurdish sub",
-}
 
 # Pattern to extract language from title brackets e.g. "Solo Leveling [Hindi]" or "(Hindi Dubbed)"
 TITLE_LANG_PATTERN = re.compile(r"\[([^\]]+)\]\s*$|\(([A-Za-z\s]+)\)\s*$")
@@ -124,97 +103,101 @@ def _match_score(match: dict) -> int:
     return score
 
 async def find_fast_matches(title: str, year: str, is_movie: bool, pref_lang_codes: list[str] = None) -> list[dict]:
-    """Fast mode: get all matches including language-specific versions.
+    """Fast mode: search by title, then fetch detail pages to discover ALL available dubs.
     
-    When pref_lang_codes is provided (e.g. ["hi", "en", "ta"]), runs parallel
-    language-filtered searches via SearchWithFilter alongside the main search
-    to find dub variants the basic title search would miss.
+    MovieBox stores each language dub as a separate subject with its own subjectId
+    and detailPath. The search API may not populate the full dubs list, but the
+    detail page always does. So we:
+    1. Search by title to find matching items
+    2. Fetch detail page for the best match to get the complete dubs list
+    3. Return the original match + one match per dub language
     """
     pref_lang_codes = pref_lang_codes or []
 
-    async def _title_search():
-        """Normal title search — returns the default/original listings."""
-        try:
-            s = SessionV2()
-            st = SubjectTypeV2.MOVIES if is_movie else SubjectTypeV2.TV_SERIES
-            sv = SearchV2(s, query=title, subject_type=st, per_page=10)
-            res = await sv.get_content_model()
-            matches = []
-            for item in res.items:
-                if not year or str(item.releaseDate.year) == str(year):
-                    matches.append({"item": item, "session": s, "version": "v2"})
-            return matches
-        except Exception:
-            return []
+    # Step 1: Normal title search
+    try:
+        s = SessionV2()
+        st = SubjectTypeV2.MOVIES if is_movie else SubjectTypeV2.TV_SERIES
+        sv = SearchV2(s, query=title, subject_type=st, per_page=10)
+        res = await sv.get_content_model()
+        search_matches = []
+        for item in res.items:
+            if not year or str(item.releaseDate.year) == str(year):
+                search_matches.append({"item": item, "session": s, "version": "v2"})
+    except Exception as e:
+        print(f"[Provider] Title search failed: {e}")
+        search_matches = []
 
-    async def _filtered_search(lang_code: str):
-        """Language-filtered search — finds dub-specific listings."""
-        filter_value = LANG_CODE_TO_FILTER.get(lang_code)
-        if not filter_value:
-            return []
-        try:
-            s = SessionV2()
-            st = SubjectTypeV2.MOVIES if is_movie else SubjectTypeV2.TV_SERIES
-            fp = FilterParams(language=filter_value)
-            sv = SearchWithFilter(subject_type=st, session=s, filter_params=fp, per_page=10)
-            res = await sv.get_content_model()
-            matches = []
-            for item in res.items:
-                # Filter search results don't have a query, so match by title similarity
-                item_title = getattr(item, "title", "").lower()
-                search_title = title.lower()
-                # Accept if the search title appears in the item title or vice versa
-                if search_title in item_title or item_title in search_title or _titles_match(search_title, item_title):
-                    matches.append({
-                        "item": item,
-                        "session": s,
-                        "version": "v2",
-                        "filter_lang": lang_code,
-                    })
-            return matches
-        except Exception:
-            return []
+    if not search_matches:
+        return []
 
-    # Build task list: always do the main title search
-    tasks = [_title_search()]
-
-    # Add language-filtered searches for each non-"all" preferred language
-    effective_langs = [l for l in pref_lang_codes if l != "all" and l in LANG_CODE_TO_FILTER]
-    for lang_code in effective_langs:
-        tasks.append(_filtered_search(lang_code))
-
-    results = await asyncio.gather(*tasks)
-
-    # Merge, deduplicate by detailPath
-    seen_paths = set()
+    # Step 2: For each v2 match, fetch the detail page to discover ALL dubs
     all_matches = []
-    for batch in results:
-        for match in batch:
-            detail_path = getattr(match["item"], "detailPath", "")
-            if detail_path and detail_path in seen_paths:
-                continue
-            if detail_path:
-                seen_paths.add(detail_path)
-            all_matches.append(match)
+    seen_detail_paths = set()
 
-    all_matches.sort(key=_match_score, reverse=True)
+    async def _discover_dubs(match):
+        """Fetch detail page → get complete dubs list → create one match per dub."""
+        item = match["item"]
+        detail_path = getattr(item, "detailPath", "")
+        session = match["session"]
+        discovered = []
+
+        # Always include the original match
+        if detail_path and detail_path not in seen_detail_paths:
+            seen_detail_paths.add(detail_path)
+            discovered.append(match)
+
+        # Check dubs from the search result first
+        dubs = getattr(item, "dubs", None)
+
+        # If search result doesn't have dubs, or has only 1, fetch the detail page
+        if not dubs or len(dubs) <= 1:
+            try:
+                details = ItemDetails(session)
+                detail_model = await details.get_content_model(detail_path)
+                # The detail page's subject should have the full dubs list
+                dubs = getattr(detail_model.subject, "dubs", None)
+                print(f"[Provider] Detail page for '{getattr(item, 'title', '?')}' — dubs: {[getattr(d, 'lanName', '?') for d in (dubs or [])]}")
+            except Exception as e:
+                print(f"[Provider] Detail page fetch failed for {detail_path}: {e}")
+
+        # Create a match for each dub that's different from the main item
+        if dubs and len(dubs) > 1:
+            for dub in dubs:
+                dub_detail = getattr(dub, "detailPath", "")
+                dub_lan = getattr(dub, "lanName", "")
+                dub_original = getattr(dub, "original", False)
+
+                if not dub_detail or not dub_lan:
+                    continue
+                if dub_detail in seen_detail_paths:
+                    continue
+                seen_detail_paths.add(dub_detail)
+
+                # Tag this as a dub-expanded match so extract_streams knows
+                # to fetch from this specific detailPath
+                discovered.append({
+                    "item": item,  # original item for reference
+                    "session": session,
+                    "version": "v2",
+                    "dub_detail_path": dub_detail,
+                    "dub_language": dub_lan,
+                    "dub_original": dub_original,
+                })
+
+        return discovered
+
+    # Run dub discovery in parallel for all search matches (limit to top 3)
+    dub_tasks = [_discover_dubs(m) for m in search_matches[:3]]
+    dub_results = await asyncio.gather(*dub_tasks)
+
+    for batch in dub_results:
+        all_matches.extend(batch)
+
+    print(f"[Provider] Total matches after dub discovery: {len(all_matches)} "
+          f"(from {len(search_matches)} search results)")
+
     return all_matches
-
-
-def _titles_match(a: str, b: str) -> bool:
-    """Fuzzy title match — checks if core words overlap significantly."""
-    words_a = set(re.findall(r'[a-z0-9]+', a))
-    words_b = set(re.findall(r'[a-z0-9]+', b))
-    if not words_a or not words_b:
-        return False
-    # Remove common noise words
-    noise = {"the", "a", "an", "and", "of", "in", "to", "for", "is", "on", "at"}
-    words_a -= noise
-    words_b -= noise
-    if not words_a or not words_b:
-        return len(words_a) == len(words_b)  # both empty after noise removal
-    overlap = words_a & words_b
-    return len(overlap) >= min(len(words_a), len(words_b)) * 0.6
 
 
 async def find_all_matches(title: str, year: str, is_movie: bool) -> list[dict]:
@@ -297,15 +280,38 @@ async def extract_streams(
     tasks = []
 
     async def fetch_v2(match):
+        """Fetch streams for a v2 match — either from the original item or a dub's detailPath."""
         try:
-            if is_movie:
-                dl = WebSingle(match["session"], match["item"])
-                res = await dl.get_content_model()
+            session = match["session"]
+            dub_detail_path = match.get("dub_detail_path")
+
+            if dub_detail_path:
+                # This is a dub-expanded match — fetch the dub's detail page first,
+                # then get its downloads. This gives us a DIFFERENT stream URL
+                # for this language.
+                details = ItemDetails(session)
+                detail_model = await details.get_content_model(dub_detail_path)
+                dub_item = detail_model.subject
+
+                if is_movie:
+                    dl = WebSingle(session, dub_item)
+                    res = await dl.get_content_model()
+                else:
+                    dl = WebTV(session, dub_item)
+                    res = await dl.get_content_model(season=season, episode=episode)
             else:
-                dl = WebTV(match["session"], match["item"])
-                res = await dl.get_content_model(season=season, episode=episode)
+                # Normal match — fetch downloads directly from the search result item
+                if is_movie:
+                    dl = WebSingle(session, match["item"])
+                    res = await dl.get_content_model()
+                else:
+                    dl = WebTV(session, match["item"])
+                    res = await dl.get_content_model(season=season, episode=episode)
+
             return (res.downloads, match, res.captions)
-        except Exception:
+        except Exception as e:
+            dub_lang = match.get("dub_language", "?")
+            print(f"[Provider] fetch_v2 failed (lang={dub_lang}): {e}")
             return ([], match, [])
 
     async def fetch_v1(match):
@@ -351,20 +357,7 @@ async def extract_streams(
             pass
         return ([], match, [])
 
-    # Collect dub detailPaths from v2 matches for additional language streams
-    dub_fetches = []
-    for match in matches:
-        if match["version"] == "v2":
-            item = match["item"]
-            dubs = getattr(item, "dubs", None)
-            if dubs and len(dubs) > 1:
-                main_detail = getattr(item, "detailPath", "")
-                for dub in dubs:
-                    dub_detail = getattr(dub, "detailPath", "")
-                    dub_lan = getattr(dub, "lanName", "")
-                    if dub_detail and dub_detail != main_detail and dub_lan:
-                        dub_fetches.append((match, dub_detail, dub_lan))
-
+    # Build fetch tasks — v2 handles both normal and dub-expanded matches
     for match in matches:
         if match["version"] == "v2":
             tasks.append(fetch_v2(match))
@@ -372,41 +365,6 @@ async def extract_streams(
             tasks.append(fetch_v1(match))
         elif match["version"] == "v3":
             tasks.append(fetch_v3(match))
-
-    # Add dub fetch tasks
-    async def fetch_dub_streams(original_match, dub_detail_path, dub_language):
-        """Fetch streams for a specific dub version — works for both movies and TV series."""
-        try:
-            from moviebox.web.core import ItemDetails
-            from moviebox.web.streams import (
-                DownloadableSingleFilesDetail,
-                DownloadableTVSeriesFilesDetail,
-            )
-            from moviebox.web.requests import Session as WebSession
-
-            session = WebSession()
-
-            # Step 1: Get the dub's item details
-            details = ItemDetails(session)
-            model = await details.get_content_model(dub_detail_path)
-
-            # Step 2: Fetch streams using the correct downloader for movies vs TV
-            if is_movie:
-                dl = DownloadableSingleFilesDetail(session, model.subject)
-                res = await dl.get_content_model()
-            else:
-                dl = DownloadableTVSeriesFilesDetail(session, model.subject)
-                res = await dl.get_content_model(season=season, episode=episode)
-
-            # Tag with dub language
-            dub_match = dict(original_match)
-            dub_match["dub_language"] = dub_language
-            return (res.downloads, dub_match, res.captions)
-        except Exception:
-            return ([], original_match, [])
-
-    for match, dub_detail, dub_lan in dub_fetches:
-        tasks.append(fetch_dub_streams(match, dub_detail, dub_lan))
 
     results = await asyncio.gather(*tasks)
 
@@ -423,4 +381,5 @@ async def extract_streams(
                 }
             )
 
+    print(f"[Provider] Total streams extracted: {len(all_streams)}")
     return all_streams
