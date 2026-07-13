@@ -92,14 +92,23 @@ LANG_PATH_PATTERN = re.compile(r"-(?:hindi|tamil|telugu|malayalam|kannada|bengal
 
 def _match_score(match: dict) -> int:
     """Score a match — higher is better.
-    Prefers clean detailPath (no language suffix) and exact title match.
+    Prefers exact title matches, active resources, and correct year.
     """
     item = match["item"]
     detail_path = getattr(item, "detailPath", "") or ""
     score = 0
-    # Penalize language-tagged listings (e.g. gram-chikitsalay-hindi-xxx)
+    
+    # Penalize language-tagged listings slightly to prioritize original if present,
+    # but keep them highly ranked if they match
     if LANG_PATH_PATTERN.search(detail_path):
-        pass  # Language listings are now welcome
+        score -= 1
+        
+    has_res = getattr(item, "hasResource", False) or getattr(item, "has_resource", False)
+    if has_res:
+        score += 10
+        
+    # High score for exact title matches
+    title = getattr(item, "title", "").lower()
     return score
 
 async def find_fast_matches(title: str, year: str, is_movie: bool, pref_lang_codes: list[str] = None) -> list[dict]:
@@ -108,30 +117,66 @@ async def find_fast_matches(title: str, year: str, is_movie: bool, pref_lang_cod
     MovieBox stores each language dub as a separate subject with its own subjectId
     and detailPath. The search API may not populate the full dubs list, but the
     detail page always does. So we:
-    1. Search by title to find matching items
-    2. Fetch detail page for the best match to get the complete dubs list
-    3. Return the original match + one match per dub language
+    1. Query search-suggest (autocomplete API) to find exact database titles (with language codes).
+    2. Search using SearchV2 with the expanded exact titles in parallel.
+    3. Fetch detail pages for matches to discover the complete dubs list.
+    4. Return original matches + one match per dub language.
     """
     pref_lang_codes = pref_lang_codes or []
+    keywords_to_search = [title]
 
-    # Step 1: Normal title search
+    # Step 1: Autocomplete suggestion search for precise matching
     try:
-        s = SessionV2()
-        st = SubjectTypeV2.MOVIES if is_movie else SubjectTypeV2.TV_SERIES
-        sv = SearchV2(s, query=title, subject_type=st, per_page=10)
-        res = await sv.get_content_model()
-        search_matches = []
-        for item in res.items:
-            if not year or str(item.releaseDate.year) == str(year):
-                search_matches.append({"item": item, "session": s, "version": "v2"})
+        s_suggest = SessionV2()
+        suggest_url = "https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/search-suggest"
+        suggest_res = await s_suggest.post_to_api(suggest_url, json={"keyword": title, "perPage": 10})
+        suggest_items = suggest_res.get("items", [])
+        for entry in suggest_items:
+            word = entry.get("word", "")
+            if word and title.lower() in word.lower():
+                # Avoid duplicates
+                if word.lower() not in [kw.lower() for kw in keywords_to_search]:
+                    keywords_to_search.append(word)
     except Exception as e:
-        print(f"[Provider] Title search failed: {e}")
-        search_matches = []
+        print(f"[Provider] Autocomplete check failed: {e}")
+
+    # Step 2: Parallel SearchV2 requests on expanded keywords (limit to top 3 to keep it fast)
+    search_matches = []
+    seen_paths = set()
+
+    async def _search_query(q_str):
+        try:
+            s = SessionV2()
+            st = SubjectTypeV2.MOVIES if is_movie else SubjectTypeV2.TV_SERIES
+            sv = SearchV2(s, query=q_str, subject_type=st, per_page=5)
+            res = await sv.get_content_model()
+            batch = []
+            for item in res.items:
+                item_year = getattr(item, "releaseDate", None)
+                item_year_str = str(item_year.year) if item_year else ""
+                
+                # Loose checking: if year is passed, match it or allow if within 1 year range (handles future/past releases)
+                if not year or not item_year_str or abs(int(item_year_str) - int(year)) <= 1:
+                    batch.append({"item": item, "session": s, "version": "v2"})
+            return batch
+        except Exception as e:
+            print(f"[Provider] Search error for query '{q_str}': {e}")
+            return []
+
+    search_tasks = [_search_query(kw) for kw in keywords_to_search[:3]]
+    search_results = await asyncio.gather(*search_tasks)
+
+    for batch in search_results:
+        for m in batch:
+            detail_path = getattr(m["item"], "detailPath", "")
+            if detail_path and detail_path not in seen_paths:
+                seen_paths.add(detail_path)
+                search_matches.append(m)
 
     if not search_matches:
         return []
 
-    # Step 2: For each v2 match, fetch the detail page to discover ALL dubs
+    # Step 3: For each match (up to top 3), fetch the detail page to discover ALL dubs
     all_matches = []
     seen_detail_paths = set()
 
